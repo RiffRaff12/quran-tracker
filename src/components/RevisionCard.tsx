@@ -6,16 +6,22 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock } from 'lucide-react';
 import { SURAHS } from '@/utils/surahData';
 import { completeRevision } from '@/utils/dataManager';
+import { TodaysRevision } from '@/types/revision';
 import RevisionDifficultyDialog from '@/components/RevisionDifficultyDialog';
 
-const RevisionCard = ({ revision, onComplete }) => {
+interface RevisionCardProps {
+  revision: TodaysRevision;
+  onComplete: () => void;
+}
+
+const RevisionCard = ({ revision, onComplete }: RevisionCardProps) => {
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
   
   const surah = SURAHS.find(s => s.number === revision.surahNumber);
   
   if (!surah) return null;
 
-  const handleRevisionComplete = (difficulty) => {
+  const handleRevisionComplete = (difficulty: 'easy' | 'medium' | 'hard') => {
     completeRevision(revision.surahNumber, difficulty);
     setShowDifficultyDialog(false);
     onComplete();
@@ -24,7 +30,7 @@ const RevisionCard = ({ revision, onComplete }) => {
   const getDaysUntilDue = () => {
     const today = new Date();
     const dueDate = new Date(revision.nextRevision);
-    const diffTime = dueDate - today;
+    const diffTime = dueDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };

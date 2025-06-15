@@ -1,10 +1,12 @@
 
+import { RevisionData, SurahData, Goals, TodaysRevision, UpcomingRevision, RevisionHistory } from '@/types/revision';
+
 // Local storage keys
 const REVISION_DATA_KEY = 'quran_revision_data';
 const GOALS_KEY = 'quran_revision_goals';
 
 // Default data structure
-const getDefaultData = () => ({
+const getDefaultData = (): RevisionData => ({
   surahs: {},
   revisionHistory: [],
   streak: 0,
@@ -17,7 +19,7 @@ const getDefaultData = () => ({
 });
 
 // Get revision data from localStorage
-export const getRevisionData = () => {
+export const getRevisionData = (): RevisionData => {
   try {
     const data = localStorage.getItem(REVISION_DATA_KEY);
     return data ? JSON.parse(data) : getDefaultData();
@@ -28,7 +30,7 @@ export const getRevisionData = () => {
 };
 
 // Save revision data to localStorage
-export const saveRevisionData = (data) => {
+export const saveRevisionData = (data: RevisionData): void => {
   try {
     localStorage.setItem(REVISION_DATA_KEY, JSON.stringify(data));
   } catch (error) {
@@ -37,11 +39,11 @@ export const saveRevisionData = (data) => {
 };
 
 // Update surah memorization status
-export const updateSurahStatus = (surahNumber, memorized) => {
+export const updateSurahStatus = (surahNumber: number, memorized: boolean): void => {
   const data = getRevisionData();
   
   if (!data.surahs[surahNumber]) {
-    data.surahs[surahNumber] = {};
+    data.surahs[surahNumber] = { memorized: false };
   }
   
   data.surahs[surahNumber].memorized = memorized;
@@ -59,8 +61,8 @@ export const updateSurahStatus = (surahNumber, memorized) => {
 };
 
 // Spaced repetition algorithm
-const calculateNextRevision = (difficulty, currentInterval = 1) => {
-  let multiplier;
+const calculateNextRevision = (difficulty: 'easy' | 'medium' | 'hard', currentInterval: number = 1) => {
+  let multiplier: number;
   
   switch (difficulty) {
     case 'easy':
@@ -87,11 +89,11 @@ const calculateNextRevision = (difficulty, currentInterval = 1) => {
 };
 
 // Complete a revision
-export const completeRevision = (surahNumber, difficulty) => {
+export const completeRevision = (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard'): void => {
   const data = getRevisionData();
   
   if (!data.surahs[surahNumber]) {
-    data.surahs[surahNumber] = {};
+    data.surahs[surahNumber] = { memorized: true };
   }
   
   const currentInterval = data.surahs[surahNumber].interval || 1;
@@ -119,7 +121,7 @@ export const completeRevision = (surahNumber, difficulty) => {
 };
 
 // Update streak based on revision activity
-const updateStreak = (data) => {
+const updateStreak = (data: RevisionData): void => {
   const today = new Date().toDateString();
   const lastRevisionDate = data.lastRevisionDate ? new Date(data.lastRevisionDate).toDateString() : null;
   
@@ -147,7 +149,7 @@ const updateStreak = (data) => {
 };
 
 // Get current streak
-export const getStreak = () => {
+export const getStreak = (): number => {
   const data = getRevisionData();
   
   // Check if streak is still valid (revised within last 2 days)
@@ -165,14 +167,15 @@ export const getStreak = () => {
 };
 
 // Get today's revisions
-export const getTodaysRevisions = () => {
+export const getTodaysRevisions = (): TodaysRevision[] => {
   const data = getRevisionData();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const todaysRevisions = [];
+  const todaysRevisions: TodaysRevision[] = [];
   
-  Object.entries(data.surahs).forEach(([surahNumber, surahData]) => {
+  Object.entries(data.surahs).forEach(([surahNumberStr, surahData]) => {
+    const surahNumber = parseInt(surahNumberStr);
     if (surahData.memorized && surahData.nextRevision) {
       const nextRevisionDate = new Date(surahData.nextRevision);
       nextRevisionDate.setHours(0, 0, 0, 0);
@@ -183,9 +186,9 @@ export const getTodaysRevisions = () => {
         const completedToday = lastRevision && lastRevision.toDateString() === today.toDateString();
         
         todaysRevisions.push({
-          surahNumber: parseInt(surahNumber),
+          surahNumber,
           nextRevision: surahData.nextRevision,
-          completed: completedToday
+          completed: !!completedToday
         });
       }
     }
@@ -195,32 +198,33 @@ export const getTodaysRevisions = () => {
 };
 
 // Get upcoming revisions
-export const getUpcomingRevisions = (days = 30) => {
+export const getUpcomingRevisions = (days: number = 30): UpcomingRevision[] => {
   const data = getRevisionData();
   const today = new Date();
   const endDate = new Date();
   endDate.setDate(today.getDate() + days);
   
-  const upcomingRevisions = [];
+  const upcomingRevisions: UpcomingRevision[] = [];
   
-  Object.entries(data.surahs).forEach(([surahNumber, surahData]) => {
+  Object.entries(data.surahs).forEach(([surahNumberStr, surahData]) => {
+    const surahNumber = parseInt(surahNumberStr);
     if (surahData.memorized && surahData.nextRevision) {
       const nextRevisionDate = new Date(surahData.nextRevision);
       
       if (nextRevisionDate >= today && nextRevisionDate <= endDate) {
         upcomingRevisions.push({
-          surahNumber: parseInt(surahNumber),
+          surahNumber,
           nextRevision: surahData.nextRevision
         });
       }
     }
   });
   
-  return upcomingRevisions.sort((a, b) => new Date(a.nextRevision) - new Date(b.nextRevision));
+  return upcomingRevisions.sort((a, b) => new Date(a.nextRevision).getTime() - new Date(b.nextRevision).getTime());
 };
 
 // Goals management
-export const getGoals = () => {
+export const getGoals = (): Goals => {
   try {
     const goals = localStorage.getItem(GOALS_KEY);
     return goals ? JSON.parse(goals) : {
@@ -238,7 +242,7 @@ export const getGoals = () => {
   }
 };
 
-export const updateGoals = (goals) => {
+export const updateGoals = (goals: Goals): void => {
   try {
     localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
   } catch (error) {
@@ -267,7 +271,7 @@ export const getGoalProgress = () => {
   
   // Monthly progress (new surahs memorized this month)
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const monthlyProgress = Object.values(data.surahs).filter(surah => {
+  const monthlyProgress = Object.values(data.surahs).filter((surah: SurahData) => {
     if (!surah.memorized || !surah.lastRevision) return false;
     const memorizedDate = new Date(surah.lastRevision);
     return memorizedDate >= monthStart;

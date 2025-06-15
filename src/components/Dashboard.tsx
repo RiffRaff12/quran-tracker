@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Calendar, Target, TrendingUp } from 'lucide-react';
 import { getRevisionData, getStreak, getTodaysRevisions } from '@/utils/dataManager';
+import { SurahData } from '@/types/revision';
 import RevisionCard from '@/components/RevisionCard';
 
 const Dashboard = () => {
@@ -25,7 +26,7 @@ const Dashboard = () => {
 
   const updateStats = () => {
     const data = getRevisionData();
-    const memorizedCount = Object.values(data.surahs).filter(s => s.memorized).length;
+    const memorizedCount = Object.values(data.surahs).filter((s: SurahData) => s.memorized).length;
     const streak = getStreak();
     const todaysRevisions = getTodaysRevisions();
     

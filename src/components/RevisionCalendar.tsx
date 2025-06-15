@@ -1,15 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUpcomingRevisions } from '@/utils/dataManager';
+import { UpcomingRevision } from '@/types/revision';
 import { SURAHS } from '@/utils/surahData';
 
 const RevisionCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [upcomingRevisions, setUpcomingRevisions] = useState([]);
+  const [upcomingRevisions, setUpcomingRevisions] = useState<UpcomingRevision[]>([]);
 
   useEffect(() => {
     loadUpcomingRevisions();
@@ -20,13 +20,13 @@ const RevisionCalendar = () => {
     setUpcomingRevisions(revisions);
   };
 
-  const navigateMonth = (direction) => {
+  const navigateMonth = (direction: number) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(currentDate.getMonth() + direction);
     setCurrentDate(newDate);
   };
 
-  const formatDate = (date) => {
+  const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -36,7 +36,7 @@ const RevisionCalendar = () => {
   };
 
   const getRevisionsByDate = () => {
-    const revisionsByDate = {};
+    const revisionsByDate: Record<string, UpcomingRevision[]> = {};
     upcomingRevisions.forEach(revision => {
       const dateKey = new Date(revision.nextRevision).toDateString();
       if (!revisionsByDate[dateKey]) {
@@ -48,7 +48,7 @@ const RevisionCalendar = () => {
   };
 
   const revisionsByDate = getRevisionsByDate();
-  const sortedDates = Object.keys(revisionsByDate).sort((a, b) => new Date(a) - new Date(b));
+  const sortedDates = Object.keys(revisionsByDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
   return (
     <div className="space-y-6">
