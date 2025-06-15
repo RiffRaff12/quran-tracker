@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -119,7 +120,7 @@ const RevisionCalendar = () => {
                         isToday ? 'text-emerald-600' : 
                         isOverdue ? 'text-red-600' : 'text-foreground'
                       }`}>
-                        {formatDate(date)}
+                        {formatDate(dateKey)}
                       </h3>
                       {isToday && (
                         <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
