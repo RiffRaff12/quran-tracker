@@ -5,6 +5,110 @@ import { RevisionData, SurahData, Goals, TodaysRevision, UpcomingRevision, Revis
 const REVISION_DATA_KEY = 'quran_revision_data';
 const GOALS_KEY = 'quran_revision_goals';
 
+// Demo data for testing
+const getDemoData = (): RevisionData => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const twoDaysAgo = new Date(today);
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const inThreeDays = new Date(today);
+  inThreeDays.setDate(inThreeDays.getDate() + 3);
+  const inFiveDays = new Date(today);
+  inFiveDays.setDate(inFiveDays.getDate() + 5);
+
+  return {
+    surahs: {
+      // Overdue surahs
+      1: { 
+        memorized: true, 
+        lastRevision: twoDaysAgo.toISOString(),
+        nextRevision: yesterday.toISOString(),
+        interval: 2,
+        difficulty: 'medium'
+      },
+      67: { 
+        memorized: true, 
+        lastRevision: '2024-06-10T10:00:00.000Z',
+        nextRevision: twoDaysAgo.toISOString(),
+        interval: 3,
+        difficulty: 'hard'
+      },
+      // Due today
+      112: { 
+        memorized: true, 
+        lastRevision: yesterday.toISOString(),
+        nextRevision: today.toISOString(),
+        interval: 1,
+        difficulty: 'easy'
+      },
+      113: { 
+        memorized: true, 
+        lastRevision: '2024-06-12T08:00:00.000Z',
+        nextRevision: today.toISOString(),
+        interval: 2,
+        difficulty: 'medium'
+      },
+      // Upcoming revisions
+      114: { 
+        memorized: true, 
+        lastRevision: today.toISOString(),
+        nextRevision: tomorrow.toISOString(),
+        interval: 1,
+        difficulty: 'easy'
+      },
+      78: { 
+        memorized: true, 
+        lastRevision: yesterday.toISOString(),
+        nextRevision: inThreeDays.toISOString(),
+        interval: 4,
+        difficulty: 'medium'
+      },
+      36: { 
+        memorized: true, 
+        lastRevision: '2024-06-10T15:00:00.000Z',
+        nextRevision: inFiveDays.toISOString(),
+        interval: 7,
+        difficulty: 'easy'
+      },
+      // Recently memorized but not yet revised
+      103: { 
+        memorized: true, 
+        lastRevision: null,
+        nextRevision: tomorrow.toISOString(),
+        interval: 1,
+        difficulty: 'medium'
+      }
+    },
+    revisionHistory: [
+      {
+        surahNumber: 114,
+        date: today.toISOString(),
+        difficulty: 'easy'
+      },
+      {
+        surahNumber: 112,
+        date: yesterday.toISOString(),
+        difficulty: 'easy'
+      },
+      {
+        surahNumber: 78,
+        date: yesterday.toISOString(),
+        difficulty: 'medium'
+      }
+    ],
+    streak: 2,
+    lastRevisionDate: today.toISOString(),
+    goals: {
+      dailyRevisions: 3,
+      weeklyRevisions: 20,
+      memorizePerMonth: 2
+    }
+  };
+};
+
 // Default data structure
 const getDefaultData = (): RevisionData => ({
   surahs: {},
@@ -22,7 +126,16 @@ const getDefaultData = (): RevisionData => ({
 export const getRevisionData = (): RevisionData => {
   try {
     const data = localStorage.getItem(REVISION_DATA_KEY);
-    return data ? JSON.parse(data) : getDefaultData();
+    if (data) {
+      return JSON.parse(data);
+    } else {
+      // If no data exists, create demo data
+      const demoData = getDemoData();
+      saveRevisionData(demoData);
+      // Also mark onboarding as complete for demo
+      localStorage.setItem('quran_onboarding_complete', 'true');
+      return demoData;
+    }
   } catch (error) {
     console.error('Error loading revision data:', error);
     return getDefaultData();
