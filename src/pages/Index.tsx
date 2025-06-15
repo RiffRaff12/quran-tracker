@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, List, Target, BookOpen, Menu, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,32 +8,52 @@ import Dashboard from '@/components/Dashboard';
 import SurahManager from '@/components/SurahManager';
 import RevisionCalendar from '@/components/RevisionCalendar';
 import GoalSetting from '@/components/GoalSetting';
+import Onboarding from '@/components/Onboarding';
+import RecommendedRevisions from '@/components/RecommendedRevisions';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    // Check if onboarding has been completed
+    const onboardingComplete = localStorage.getItem('quran_onboarding_complete');
+    if (!onboardingComplete) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    setActiveTab('recommendations'); // Show recommendations first
+  };
 
   const tabs = [
+    { id: 'recommendations', label: 'Today', icon: Target },
     { id: 'dashboard', label: 'Dashboard', icon: BookOpen },
     { id: 'surahs', label: 'Surahs', icon: List },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'goals', label: 'Goals', icon: Target },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'recommendations':
+        return <RecommendedRevisions />;
       case 'dashboard':
         return <Dashboard />;
       case 'surahs':
         return <SurahManager />;
       case 'calendar':
         return <RevisionCalendar />;
-      case 'goals':
-        return <GoalSetting />;
       default:
-        return <Dashboard />;
+        return <RecommendedRevisions />;
     }
   };
+
+  if (showOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
