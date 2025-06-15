@@ -41,17 +41,17 @@ const RevisionCard = ({ revision, onComplete }: RevisionCardProps) => {
 
   return (
     <>
-      <Card className={`transition-all hover:shadow-md ${
+      <Card className={`transition-all hover:shadow-md active:scale-95 ${
         revision.completed ? 'bg-emerald-50 border-emerald-200' :
         isOverdue ? 'bg-red-50 border-red-200' :
         isDueToday ? 'bg-amber-50 border-amber-200' : 'bg-white'
       }`}>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="font-semibold">{surah.name}</h3>
-              <p className="text-sm text-muted-foreground">{surah.transliteration}</p>
-              <div className="flex items-center gap-2 mt-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base md:text-lg truncate">{surah.name}</h3>
+              <p className="text-sm text-muted-foreground truncate">{surah.transliteration}</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge variant="outline" className="text-xs">
                   Surah {surah.number}
                 </Badge>
@@ -68,20 +68,21 @@ const RevisionCard = ({ revision, onComplete }: RevisionCardProps) => {
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-3">
               {revision.completed ? (
                 <div className="flex items-center gap-2 text-emerald-600">
                   <CheckCircle className="h-5 w-5" />
-                  <span className="text-sm font-medium">Completed</span>
+                  <span className="text-sm font-medium hidden sm:inline">Completed</span>
                 </div>
               ) : (
                 <Button
                   onClick={() => setShowDifficultyDialog(true)}
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-emerald-600 hover:bg-emerald-700 touch-manipulation h-10 px-4"
                 >
                   <Clock className="h-4 w-4 mr-2" />
-                  Revise
+                  <span className="hidden sm:inline">Revise</span>
+                  <span className="sm:hidden">✓</span>
                 </Button>
               )}
             </div>
