@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -16,28 +15,28 @@ const RevisionDifficultyDialog = ({ open, onOpenChange, surah, onComplete }) => 
       level: 'easy',
       title: 'Easy',
       description: 'I recalled it perfectly with no mistakes',
-      color: 'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700',
+      color: 'border-2 border-emerald-500 text-black bg-white',
       nextRevision: '4 days'
     },
     {
       level: 'medium',
       title: 'Medium',
       description: 'I recalled it with minor hesitation or mistakes',
-      color: 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700',
+      color: 'border-2 border-amber-500 text-black bg-white',
       nextRevision: '2 days'
     },
     {
       level: 'hard',
       title: 'Hard',
       description: 'I struggled or made significant mistakes',
-      color: 'bg-red-500 hover:bg-red-600 active:bg-red-700',
+      color: 'border-2 border-red-500 text-black bg-white',
       nextRevision: '1 day'
     }
   ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md mx-4">
+      <DialogContent className="w-full max-w-sm mx-4">
         <DialogHeader>
           <DialogTitle className="text-lg">How was your revision?</DialogTitle>
           <DialogDescription className="text-sm">
@@ -50,7 +49,7 @@ const RevisionDifficultyDialog = ({ open, onOpenChange, surah, onComplete }) => 
             <Button
               key={difficulty.level}
               onClick={() => onComplete(difficulty.level)}
-              className={`w-full ${difficulty.color} text-white touch-manipulation h-auto p-4 text-left`}
+              className={`w-full ${difficulty.color} touch-manipulation h-auto p-4 text-left`}
               size="lg"
             >
               <div className="w-full">

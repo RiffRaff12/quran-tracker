@@ -1,10 +1,22 @@
-
 export interface SurahData {
+  surahNumber?: number;
   memorized: boolean;
   lastRevision?: string;
   nextRevision?: string;
   interval?: number;
   difficulty?: 'easy' | 'medium' | 'hard';
+  easeFactor?: number;  // Starts at 2.5, adjusts based on performance
+  learningStep?: number;  // 0 = new, 1 = learning, 2 = review
+  consecutiveCorrect?: number;  // Number of consecutive correct reviews
+}
+
+export interface Profile {
+  id: string;
+  hasCompletedOnboarding: boolean;
+  memorisedSurahs: number[];
+  goals: Goals;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface RevisionHistory {

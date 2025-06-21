@@ -1,44 +1,44 @@
-
-import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { getUpcomingRevisions } from '@/utils/dataManager';
-import { UpcomingRevision } from '@/types/revision';
+import { Calendar } from 'lucide-react';
+import { getUpcomingRevisions, getSurahRevisions } from '@/utils/dataManager';
+import { SurahData } from '@/types/revision';
 import { SURAHS } from '@/utils/surahData';
+import { supabase } from '@/lib/supabaseClient';
 
 const RevisionCalendar = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [upcomingRevisions, setUpcomingRevisions] = useState<UpcomingRevision[]>([]);
 
-  useEffect(() => {
-    loadUpcomingRevisions();
-  }, []);
-
-  const loadUpcomingRevisions = () => {
-    const revisions = getUpcomingRevisions(30); // Next 30 days
-    setUpcomingRevisions(revisions);
-  };
-
-  const navigateMonth = (direction: number) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(currentDate.getMonth() + direction);
-    setCurrentDate(newDate);
-  };
+  const { data: upcomingRevisions = [], isLoading: isLoadingUpcoming } = useQuery<SurahData[]>({
+    queryKey: ['upcomingRevisions'],
+    queryFn: () => getUpcomingRevisions(30) // Get for the next 30 days
+  });
+  
+  const { data: revisionHistory = [], isLoading: isLoadingHistory } = useQuery({
+      queryKey: ['revisionHistory'],
+      queryFn: async () => {
+          const { data, error } = await supabase
+              .from('revision_history')
+              .select('*')
+              .order('revision_date', { ascending: false })
+              .limit(10);
+          if (error) throw error;
+          return data;
+      },
+  });
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       weekday: 'long',
-      year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
   };
 
   const getRevisionsByDate = () => {
-    const revisionsByDate: Record<string, UpcomingRevision[]> = {};
+    const revisionsByDate: Record<string, SurahData[]> = {};
     upcomingRevisions.forEach(revision => {
+      if (!revision.nextRevision) return;
       const dateKey = new Date(revision.nextRevision).toDateString();
       if (!revisionsByDate[dateKey]) {
         revisionsByDate[dateKey] = [];
@@ -51,47 +51,14 @@ const RevisionCalendar = () => {
   const revisionsByDate = getRevisionsByDate();
   const sortedDates = Object.keys(revisionsByDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
+  const isLoading = isLoadingUpcoming || isLoadingHistory;
+  
+  if (isLoading) {
+    return <div>Loading Calendar...</div>
+  }
+
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Calendar Header - Mobile Optimized */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                <Calendar className="h-4 w-4 md:h-5 w-5" />
-                Revision Calendar
-              </CardTitle>
-              <CardDescription className="text-sm">
-                View your upcoming revision schedule
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-1 md:gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateMonth(-1)}
-                className="h-8 w-8 p-0 md:h-9 md:w-9"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="font-medium px-2 text-sm md:text-base whitespace-nowrap">
-                {currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateMonth(1)}
-                className="h-8 w-8 p-0 md:h-9 md:w-9"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Upcoming Revisions List - Mobile Optimized */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base md:text-lg">Upcoming Revisions</CardTitle>
@@ -102,10 +69,9 @@ const RevisionCalendar = () => {
         <CardContent>
           {sortedDates.length === 0 ? (
             <div className="text-center py-8 md:py-12">
-              <div className="text-4xl mb-2">📅</div>
               <Calendar className="h-8 w-8 md:h-12 md:w-12 text-muted-foreground mx-auto mb-2 md:mb-4" />
               <p className="text-muted-foreground text-sm md:text-base">
-                No upcoming revisions scheduled. Start memorizing surahs to see them here!
+                No upcoming revisions scheduled.
               </p>
             </div>
           ) : (
@@ -114,14 +80,12 @@ const RevisionCalendar = () => {
                 const date = new Date(dateKey);
                 const revisions = revisionsByDate[dateKey];
                 const isToday = date.toDateString() === new Date().toDateString();
-                const isOverdue = date < new Date() && !isToday;
                 
                 return (
                   <div key={dateKey} className="space-y-3">
                     <div className="flex items-center gap-2 md:gap-3">
                       <h3 className={`font-semibold text-sm md:text-base ${
-                        isToday ? 'text-emerald-600' : 
-                        isOverdue ? 'text-red-600' : 'text-foreground'
+                        isToday ? 'text-emerald-600' : 'text-foreground'
                       }`}>
                         {formatDate(dateKey)}
                       </h3>
@@ -130,30 +94,86 @@ const RevisionCalendar = () => {
                           Today
                         </Badge>
                       )}
-                      {isOverdue && (
-                        <Badge variant="destructive" className="text-xs">
-                          Overdue
-                        </Badge>
-                      )}
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3 ml-2 md:ml-4">
+                    <div className="space-y-2 pl-2">
                       {revisions.map(revision => {
                         const surah = SURAHS.find(s => s.number === revision.surahNumber);
+                        if (!surah) return null;
+
                         return (
-                          <Card key={revision.surahNumber} className="bg-gray-50 hover:bg-gray-100 transition-colors">
-                            <CardContent className="p-3">
-                              <div className="font-medium text-sm md:text-base truncate">{surah?.name}</div>
-                              <div className="text-xs md:text-sm text-muted-foreground truncate">
-                                {surah?.transliteration}
+                          <div
+                            key={revision.surahNumber}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-white"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium bg-gray-100 text-gray-600">
+                                {surah.number}
                               </div>
-                              <Badge variant="outline" className="text-xs mt-1">
-                                Surah {surah?.number}
-                              </Badge>
-                            </CardContent>
-                          </Card>
+                              <div>
+                                <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
+                                <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Last revised on</p>
+                              <p className="text-xs font-medium">
+                                {revision.lastRevision ? new Date(revision.lastRevision).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
                         );
                       })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base md:text-lg">Recent Revision History</CardTitle>
+          <CardDescription className="text-sm">
+            Your last 10 completed revisions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {revisionHistory.length === 0 ? (
+            <div className="text-center py-8 md:py-12">
+              <p className="text-muted-foreground text-sm md:text-base">
+                No revision history yet.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {revisionHistory.map((rev: any, idx: number) => {
+                const surah = SURAHS.find(s => s.number === rev.surah_number);
+                if (!surah) return null;
+                
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-white"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium bg-gray-100 text-gray-600">
+                        {surah.number}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
+                        <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">
+                        Revised on {new Date(rev.revision_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                      <Badge className="text-xs capitalize mt-1" variant="outline">
+                        {rev.difficulty}
+                      </Badge>
                     </div>
                   </div>
                 );

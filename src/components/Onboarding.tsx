@@ -1,21 +1,47 @@
-
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { CheckCircle, Search, BookOpen } from 'lucide-react';
+import { CheckCircle, Circle, Search, BookOpen, Loader2 } from 'lucide-react';
 import { SURAHS } from '@/utils/surahData';
-import { updateSurahStatus } from '@/utils/dataManager';
+import { updateUserOnboarding } from '@/utils/dataManager';
+import { useToast } from '@/hooks/use-toast';
 
 interface OnboardingProps {
   onComplete: () => void;
 }
 
 const Onboarding = ({ onComplete }: OnboardingProps) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [selectedSurahs, setSelectedSurahs] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
+
+  const mutation = useMutation({
+    mutationFn: async (surahs: number[]) => {
+      // Update user onboarding status and save memorized surahs
+      await updateUserOnboarding(surahs);
+    },
+    onSuccess: () => {
+      // Invalidate and refetch user profile
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      toast({
+        title: "Setup Complete!",
+        description: "Your memorized surahs have been saved.",
+      });
+      onComplete();
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "An error occurred",
+        description: error.message,
+      });
+    }
+  });
 
   const filteredSurahs = SURAHS.filter(surah => 
     surah.name.includes(searchTerm) || 
@@ -34,14 +60,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   };
 
   const handleComplete = () => {
-    // Mark all selected surahs as memorized
-    selectedSurahs.forEach(surahNumber => {
-      updateSurahStatus(surahNumber, true);
-    });
-    
-    // Mark onboarding as complete
-    localStorage.setItem('quran_onboarding_complete', 'true');
-    onComplete();
+    mutation.mutate(Array.from(selectedSurahs));
   };
 
   const steps = [
@@ -110,16 +129,30 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
+                            isSelected
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
                           {surah.number}
-                        </Badge>
-                        <h3 className="font-medium text-sm truncate">{surah.name}</h3>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-base truncate">
+                            {surah.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {surah.transliteration}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">{surah.transliteration}</p>
                     </div>
-                    {isSelected && (
-                      <CheckCircle className="w-5 h-5 text-emerald-600 ml-2" />
+                    {isSelected ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-600 ml-2 flex-shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-muted-foreground ml-2 flex-shrink-0" />
                     )}
                   </div>
                 </div>
@@ -132,15 +165,17 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               variant="outline" 
               onClick={() => setCurrentStep(0)}
               className="flex-1"
+              disabled={mutation.isPending}
             >
               Back
             </Button>
             <Button 
               onClick={handleComplete}
-              disabled={selectedSurahs.size === 0}
+              disabled={selectedSurahs.size === 0 || mutation.isPending}
               className="flex-1 bg-emerald-600 hover:bg-emerald-700"
             >
-              Complete Setup
+              {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {mutation.isPending ? 'Saving...' : 'Complete Setup'}
             </Button>
           </div>
         </div>

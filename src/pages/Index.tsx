@@ -1,33 +1,15 @@
-
-import React, { useState, useEffect } from 'react';
-import { Calendar, List, Target, BookOpen, Menu, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, List, Target, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import Dashboard from '@/components/Dashboard';
 import SurahManager from '@/components/SurahManager';
 import RevisionCalendar from '@/components/RevisionCalendar';
 import GoalSetting from '@/components/GoalSetting';
-import Onboarding from '@/components/Onboarding';
 import RecommendedRevisions from '@/components/RecommendedRevisions';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    // Check if onboarding has been completed
-    const onboardingComplete = localStorage.getItem('quran_onboarding_complete');
-    if (!onboardingComplete) {
-      setShowOnboarding(true);
-    }
-  }, []);
-
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    setActiveTab('recommendations'); // Show recommendations first
-  };
 
   const tabs = [
     { id: 'recommendations', label: 'Today', icon: Target },
@@ -51,10 +33,6 @@ const Index = () => {
     }
   };
 
-  if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
       {/* Mobile Header */}
@@ -66,37 +44,6 @@ const Index = () => {
               {tabs.find(tab => tab.id === activeTab)?.label}
             </p>
           </div>
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-80">
-              <div className="py-6">
-                <h2 className="text-lg font-semibold mb-6">Navigation</h2>
-                <div className="space-y-2">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <Button
-                        key={tab.id}
-                        variant={activeTab === tab.id ? "default" : "ghost"}
-                        className="w-full justify-start h-12 text-base"
-                        onClick={() => {
-                          setActiveTab(tab.id);
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        <Icon className="h-5 w-5 mr-3" />
-                        {tab.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
 

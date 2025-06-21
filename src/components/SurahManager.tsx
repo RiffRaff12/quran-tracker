@@ -1,160 +1,182 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { CheckCircle, Circle, Search } from 'lucide-react';
-import { getRevisionData, updateSurahStatus } from '@/utils/dataManager';
-import { SURAHS } from '@/utils/surahData';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { SURAHS, Surah } from '@/utils/surahData';
+import { getSurahRevisions, addMemorizedSurah, removeMemorizedSurah, getRevisionHistoryForSurah } from '@/utils/dataManager';
+import { SurahData } from '@/types/revision';
+import { List, CheckCircle, Circle, Loader2, History } from 'lucide-react';
 
-const SurahManager = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all'); // all, memorized, not-memorized
-  const [surahData, setSurahData] = useState({});
-
-  useEffect(() => {
-    const data = getRevisionData();
-    setSurahData(data.surahs);
-  }, []);
-
-  const filteredSurahs = SURAHS.filter(surah => {
-    const matchesSearch = surah.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         surah.transliteration.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (filter === 'memorized') {
-      return matchesSearch && surahData[surah.number]?.memorized;
-    } else if (filter === 'not-memorized') {
-      return matchesSearch && !surahData[surah.number]?.memorized;
-    }
-    
-    return matchesSearch;
+const SurahStatistics = ({ surah }: { surah: Surah }) => {
+  const { data: history = [], isLoading } = useQuery({
+    queryKey: ['surahHistory', surah.number],
+    queryFn: () => getRevisionHistoryForSurah(surah.number),
   });
 
-  const toggleMemorized = (surahNumber) => {
-    const currentStatus = surahData[surahNumber]?.memorized || false;
-    updateSurahStatus(surahNumber, !currentStatus);
-    
-    // Update local state
-    setSurahData(prev => ({
-      ...prev,
-      [surahNumber]: {
-        ...prev[surahNumber],
-        memorized: !currentStatus
-      }
-    }));
+  return (
+    <div>
+      {isLoading && <p>Loading history...</p>}
+      {!isLoading && history.length === 0 && <p>No revision history found for this surah.</p>}
+      {!isLoading && history.length > 0 && (
+        <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
+          {history.map((entry: any) => (
+            <div key={entry.id} className="flex justify-between items-center p-2 border-b">
+              <p className="text-sm">
+                {new Date(entry.revision_date).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </p>
+              <span className={`capitalize text-xs px-2 py-1 rounded-full ${
+                entry.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                entry.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {entry.difficulty}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SurahManager = () => {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<'all' | 'memorized' | 'unmemorized'>('all');
+  const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
+
+  const { data: revisionData = [], isLoading } = useQuery<SurahData[]>({
+    queryKey: ['surahRevisions'],
+    queryFn: getSurahRevisions,
+  });
+
+  const addSurahMutation = useMutation({
+    mutationFn: addMemorizedSurah,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+    },
+  });
+
+  const removeSurahMutation = useMutation({
+    mutationFn: removeMemorizedSurah,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+    },
+  });
+
+  const handleToggle = (surahNumber: number, isCurrentlyMemorized: boolean) => {
+    if (isCurrentlyMemorized) {
+      removeSurahMutation.mutate(surahNumber);
+    } else {
+      addSurahMutation.mutate(surahNumber);
+    }
   };
 
-  return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Search and Filter */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base md:text-lg">Manage Surahs</CardTitle>
-          <CardDescription className="text-sm">
-            Mark surahs as memorized to start tracking revisions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search surahs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-11"
-              />
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilter('all')}
-                size="sm"
-                className="whitespace-nowrap touch-manipulation"
-              >
-                All
-              </Button>
-              <Button
-                variant={filter === 'memorized' ? 'default' : 'outline'}
-                onClick={() => setFilter('memorized')}
-                size="sm"
-                className="whitespace-nowrap touch-manipulation"
-              >
-                Memorized
-              </Button>
-              <Button
-                variant={filter === 'not-memorized' ? 'default' : 'outline'}
-                onClick={() => setFilter('not-memorized')}
-                size="sm"
-                className="whitespace-nowrap touch-manipulation"
-              >
-                Not Memorized
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  const memorizedSurahNumbers = new Set(
+    revisionData.filter(r => r.memorized).map(r => r.surahNumber)
+  );
 
-      {/* Surahs List - Mobile Optimized */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        {filteredSurahs.map((surah) => {
-          const isMemorized = surahData[surah.number]?.memorized || false;
-          const lastRevision = surahData[surah.number]?.lastRevision;
-          
+  const filteredSurahs = SURAHS.filter(surah => {
+    const isMemorized = memorizedSurahNumbers.has(surah.number);
+    if (filter === 'memorized') return isMemorized;
+    if (filter === 'unmemorized') return !isMemorized;
+    return true;
+  });
+
+  if (isLoading) return <div>Loading Surah data...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex space-x-2">
+        <Button
+          variant={filter === 'all' ? 'default' : 'outline'}
+          onClick={() => setFilter('all')}
+          size="sm"
+        >
+          All
+        </Button>
+        <Button
+          variant={filter === 'memorized' ? 'default' : 'outline'}
+          onClick={() => setFilter('memorized')}
+          size="sm"
+        >
+          Memorized
+        </Button>
+        <Button
+          variant={filter === 'unmemorized' ? 'default' : 'outline'}
+          onClick={() => setFilter('unmemorized')}
+          size="sm"
+        >
+          Unmemorized
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {filteredSurahs.map(surah => {
+          const isMemorized = memorizedSurahNumbers.has(surah.number);
+          const isUpdating =
+            (addSurahMutation.isPending && addSurahMutation.variables === surah.number) ||
+            (removeSurahMutation.isPending && removeSurahMutation.variables === surah.number);
+
           return (
-            <Card key={surah.number} className={`transition-all hover:shadow-md active:scale-95 touch-manipulation ${
-              isMemorized ? 'bg-emerald-50 border-emerald-200' : 'bg-white'
-            }`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base md:text-lg truncate">{surah.name}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{surah.transliteration}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Surah {surah.number} • {surah.verses} verses
-                    </p>
+            <Dialog key={surah.number} onOpenChange={(isOpen) => !isOpen && setSelectedSurah(null)}>
+              <div
+                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                  isMemorized
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-white hover:bg-gray-50'
+                } ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <DialogTrigger asChild>
+                  <div className="flex items-center gap-3 flex-grow" onClick={() => setSelectedSurah(surah)}>
+                    <div
+                      className={`text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
+                        isMemorized ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {surah.number}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
+                      <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleMemorized(surah.number)}
-                    className="p-2 touch-manipulation ml-2 flex-shrink-0"
-                  >
-                    {isMemorized ? (
-                      <CheckCircle className="h-6 w-6 text-emerald-600" />
-                    ) : (
-                      <Circle className="h-6 w-6 text-muted-foreground" />
-                    )}
-                  </Button>
+                </DialogTrigger>
+                <div onClick={() => !isUpdating && handleToggle(surah.number, isMemorized)} className="p-2 -mr-2">
+                  {isUpdating ? (
+                    <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+                  ) : isMemorized ? (
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                  ) : (
+                    <Circle className="w-5 h-5 text-muted-foreground" />
+                  )}
                 </div>
-                
-                {isMemorized && (
-                  <div className="space-y-2">
-                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 text-xs">
-                      Memorized
-                    </Badge>
-                    {lastRevision && (
-                      <p className="text-xs text-muted-foreground">
-                        Last revised: {new Date(lastRevision).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+              {selectedSurah && selectedSurah.number === surah.number && (
+                 <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <History className="w-5 h-5" />
+                        Revision History: {selectedSurah.transliteration}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <SurahStatistics surah={selectedSurah} />
+                  </DialogContent>
+              )}
+            </Dialog>
           );
         })}
       </div>
-
-      {filteredSurahs.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-8">
-            <div className="text-4xl mb-2">🔍</div>
-            <p className="text-muted-foreground">No surahs found matching your search.</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

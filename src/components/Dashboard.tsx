@@ -1,173 +1,139 @@
-
-import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { BookOpen, Calendar, Target, TrendingUp } from 'lucide-react';
-import { getRevisionData, getStreak, getTodaysRevisions } from '@/utils/dataManager';
-import { SurahData } from '@/types/revision';
+import { BookOpen, Calendar, Target, TrendingUp, Clock } from 'lucide-react';
+import { getSurahRevisions, getStreak, getTodaysRevisions, completeRevision } from '@/utils/dataManager';
+import { SurahData, TodaysRevision } from '@/types/revision';
 import RevisionCard from '@/components/RevisionCard';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalSurahs: 114,
-    memorizedSurahs: 0,
-    currentStreak: 0,
-    todaysRevisions: 0,
-    completedToday: 0
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [completedInSession, setCompletedInSession] = useState<number[]>([]);
+
+  // Fetch all necessary data in parallel
+  const { data: revisionData = [], isLoading: isLoadingRevisions } = useQuery<SurahData[]>({
+    queryKey: ['surahRevisions'],
+    queryFn: getSurahRevisions
   });
 
-  const [todaysRevisions, setTodaysRevisions] = useState([]);
+  const { data: streak = 0, isLoading: isLoadingStreak } = useQuery<number>({
+    queryKey: ['streak'],
+    queryFn: getStreak
+  });
 
-  useEffect(() => {
-    updateStats();
-    loadTodaysRevisions();
-  }, []);
+  const { data: todaysRevisions = [], isLoading: isLoadingToday } = useQuery<TodaysRevision[]>({
+    queryKey: ['todaysRevisions'],
+    queryFn: getTodaysRevisions
+  });
+  
+  const revisionMutation = useMutation({
+    mutationFn: ({ surahNumber, difficulty }: { surahNumber: number; difficulty: 'easy' | 'medium' | 'hard' }) =>
+      completeRevision(surahNumber, difficulty),
+    onSuccess: (data, variables) => {
+      toast({
+        title: `Revision Rated!`,
+        description: `Your revision has been logged.`,
+      });
+      setCompletedInSession(prev => [...prev, variables.surahNumber]);
+      // Invalidate all relevant queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['streak'] });
+    },
+    onError: (error) => {
+       toast({
+        variant: 'destructive',
+        title: 'Error completing revision',
+        description: error.message,
+      });
+    }
+  });
 
-  const updateStats = () => {
-    const data = getRevisionData();
-    const memorizedCount = Object.values(data.surahs).filter((s: SurahData) => s.memorized).length;
-    const streak = getStreak();
-    const todaysRevisions = getTodaysRevisions();
-    
-    setStats({
-      totalSurahs: 114,
-      memorizedSurahs: memorizedCount,
-      currentStreak: streak,
-      todaysRevisions: todaysRevisions.length,
-      completedToday: todaysRevisions.filter(r => r.completed).length
-    });
+  const handleMarkComplete = (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard') => {
+    revisionMutation.mutate({ surahNumber, difficulty });
   };
 
-  const loadTodaysRevisions = () => {
-    setTodaysRevisions(getTodaysRevisions());
-  };
+  const isLoading = isLoadingRevisions || isLoadingStreak || isLoadingToday;
 
-  const memorizedPercentage = (stats.memorizedSurahs / stats.totalSurahs) * 100;
-  const todaysProgress = stats.todaysRevisions > 0 ? (stats.completedToday / stats.todaysRevisions) * 100 : 0;
+  if (isLoading) {
+    return <div>Loading dashboard...</div>; // Replace with a skeleton loader for better UX
+  }
+
+  const memorizedSurahs = revisionData.filter(s => s.memorized).length;
+  const memorizedPercentage = (memorizedSurahs / 114) * 100;
+  
+  const dueTodayCount = todaysRevisions.length;
+  const completedTodayCount = completedInSession.length;
+  const todaysProgress = dueTodayCount > 0 ? (completedTodayCount / dueTodayCount) * 100 : 0;
+  
+  const dueRevisions = todaysRevisions.filter(r => !completedInSession.includes(r.surahNumber));
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Mobile Welcome Card */}
-      <Card className="md:hidden bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <CardContent className="p-4">
-          <h2 className="text-xl font-bold mb-1">Welcome back!</h2>
-          <p className="text-emerald-100 text-sm">
-            Continue your Quran revision journey
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Stats Cards - Mobile Optimized */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <BookOpen className="h-4 w-4 md:h-5 w-5" />
-            </div>
-            <div className="text-lg md:text-2xl font-bold">{stats.memorizedSurahs}/114</div>
-            <p className="text-xs text-emerald-100">
-              {memorizedPercentage.toFixed(0)}% memorized
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+        <Card>
+          <CardHeader className="p-3 flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Memorized</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="text-2xl font-bold">{memorizedSurahs}/114</div>
+            <p className="text-xs text-muted-foreground">
+              {memorizedPercentage.toFixed(0)}% of Quran
             </p>
           </CardContent>
         </Card>
-
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <TrendingUp className="h-4 w-4 md:h-5 w-5" />
-            </div>
-            <div className="text-lg md:text-2xl font-bold">{stats.currentStreak}</div>
-            <p className="text-xs text-amber-100">day streak</p>
+        <Card>
+          <CardHeader className="p-3 flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Streak</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="text-2xl font-bold">{streak} Days</div>
+            <p className="text-xs text-muted-foreground">Keep it up!</p>
           </CardContent>
         </Card>
-
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Target className="h-4 w-4 md:h-5 w-5" />
-            </div>
-            <div className="text-lg md:text-2xl font-bold">{stats.completedToday}/{stats.todaysRevisions}</div>
-            <p className="text-xs text-blue-100">today's goal</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Calendar className="h-4 w-4 md:h-5 w-5" />
-            </div>
-            <div className="text-lg md:text-2xl font-bold">5/7</div>
-            <p className="text-xs text-purple-100">this week</p>
+        <Card className="col-span-2 md:col-span-1">
+           <CardHeader className="p-3 flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Today's Goal</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="text-2xl font-bold">{completedTodayCount}/{dueTodayCount}</div>
+            <p className="text-xs text-muted-foreground">Revisions completed</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Progress Bars - Stacked on Mobile */}
-      <div className="space-y-4 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+      {/* Progress Bars */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-lg">Memorization Progress</CardTitle>
-            <CardDescription className="text-sm">
-              Overall progress through the Quran
-            </CardDescription>
+            <CardTitle className="text-base">Memorization Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <Progress value={memorizedPercentage} className="w-full h-2 md:h-3" />
-            <p className="text-xs md:text-sm text-muted-foreground mt-2">
-              {stats.memorizedSurahs} of 114 surahs memorized
+            <Progress value={memorizedPercentage} className="w-full h-2" />
+            <p className="text-xs text-muted-foreground mt-2">
+              {memorizedSurahs} of 114 surahs memorized
             </p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-lg">Today's Revisions</CardTitle>
-            <CardDescription className="text-sm">
-              Complete your daily revision goals
-            </CardDescription>
+            <CardTitle className="text-base">Today's Revisions</CardTitle>
           </CardHeader>
           <CardContent>
-            <Progress value={todaysProgress} className="w-full h-2 md:h-3" />
-            <p className="text-xs md:text-sm text-muted-foreground mt-2">
-              {stats.completedToday} of {stats.todaysRevisions} revisions completed
+            <Progress value={todaysProgress} className="w-full h-2" />
+            <p className="text-xs text-muted-foreground mt-2">
+              {completedTodayCount} of {dueTodayCount} revisions completed
             </p>
           </CardContent>
         </Card>
       </div>
-
-      {/* Today's Revisions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base md:text-lg">Today's Revisions</CardTitle>
-          <CardDescription className="text-sm">
-            Complete these revisions to maintain your streak
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {todaysRevisions.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-2">🎉</div>
-              <p className="text-muted-foreground">
-                No revisions scheduled for today. Great job!
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {todaysRevisions.map((revision) => (
-                <RevisionCard
-                  key={revision.surahNumber}
-                  revision={revision}
-                  onComplete={() => {
-                    updateStats();
-                    loadTodaysRevisions();
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };

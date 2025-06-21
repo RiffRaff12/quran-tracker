@@ -1,37 +1,81 @@
-
-import React from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, AlertTriangle, Target } from 'lucide-react';
-import { getTodaysRevisions, getUpcomingRevisions } from '@/utils/dataManager';
+import { Clock, Target, AlertTriangle } from 'lucide-react';
+import { getTodaysRevisions, getUpcomingRevisions, completeRevision } from '@/utils/dataManager';
 import { SURAHS } from '@/utils/surahData';
 import RevisionCard from '@/components/RevisionCard';
+import { useToast } from '@/hooks/use-toast';
+import { TodaysRevision } from '@/types/revision';
 
 const RecommendedRevisions = () => {
-  const todaysRevisions = getTodaysRevisions();
-  const upcomingRevisions = getUpcomingRevisions(7); // Next 7 days
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // State to track which revisions have been completed in the current session
+  const [completedInSession, setCompletedInSession] = useState<number[]>([]);
+
+  // Fetch revisions using React Query
+  const { data: todaysRevisions = [], isLoading: isLoadingToday } = useQuery<TodaysRevision[]>({
+    queryKey: ['todaysRevisions'],
+    queryFn: getTodaysRevisions,
+  });
+
+  const { data: upcomingRevisions = [], isLoading: isLoadingUpcoming } = useQuery({
+    queryKey: ['upcomingRevisions'],
+    queryFn: () => getUpcomingRevisions(7),
+  });
+
+  // Mutation for completing a revision
+  const revisionMutation = useMutation({
+    mutationFn: ({ surahNumber, difficulty }: { surahNumber: number; difficulty: 'easy' | 'medium' | 'hard' }) =>
+      completeRevision(surahNumber, difficulty),
+    onSuccess: (data, variables) => {
+      const surahInfo = getSurahInfo(variables.surahNumber);
+      toast({
+        title: `Revision Rated`,
+        description: `You rated ${surahInfo?.name} (${surahInfo?.transliteration}) as "${variables.difficulty}".`,
+      });
+      // Mark as completed in the local UI state
+      setCompletedInSession(prev => [...prev, variables.surahNumber]);
+      // Invalidate queries to refetch data from the server
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] }); // For the surahs tab
+    },
+    onError: (error) => {
+       toast({
+        variant: 'destructive',
+        title: 'Error completing revision',
+        description: error.message,
+      });
+    }
+  });
+
+  const handleMarkComplete = (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard') => {
+    revisionMutation.mutate({ surahNumber, difficulty });
+  };
   
-  const overdue = todaysRevisions.filter(r => {
-    const today = new Date();
-    const dueDate = new Date(r.nextRevision);
-    return dueDate < today && !r.completed;
-  });
-
-  const dueToday = todaysRevisions.filter(r => {
-    const today = new Date();
-    const dueDate = new Date(r.nextRevision);
-    return dueDate.toDateString() === today.toDateString() && !r.completed;
-  });
-
-  const completed = todaysRevisions.filter(r => r.completed);
-
   const getSurahInfo = (surahNumber: number) => {
     return SURAHS.find(s => s.number === surahNumber);
   };
 
+  const dueRevisions = todaysRevisions.filter(
+    r => !completedInSession.includes(r.surahNumber)
+  );
+  
+  const completedRevisions = todaysRevisions.filter(
+    r => completedInSession.includes(r.surahNumber)
+  );
+
+  if (isLoadingToday) {
+    return <div>Loading revisions...</div>; // Or a nice skeleton loader
+  }
+
   if (todaysRevisions.length === 0) {
     return (
-      <Card className="text-center p-8">
+      <Card className="text-center p-8 mt-8">
         <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Target className="w-8 h-8 text-emerald-600" />
         </div>
@@ -47,115 +91,44 @@ const RecommendedRevisions = () => {
 
   return (
     <div className="space-y-6">
-      {/* Overdue Section */}
-      {overdue.length > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-red-800">
-              <AlertTriangle className="w-5 h-5" />
-              Overdue Revisions
-              <Badge variant="destructive" className="ml-auto">
-                {overdue.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {overdue.map((revision) => (
+      {/* Today's Revisions */}
+      {dueRevisions.length > 0 && (
+        <div className="mt-8">
+          <div className="text-sm font-medium text-muted-foreground px-1 mb-2">Today</div>
+          <div className="space-y-3">
+            {dueRevisions.map((revision) => (
               <RevisionCard
                 key={revision.surahNumber}
                 revision={revision}
-                onComplete={() => window.location.reload()}
+                onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
+                isCompleted={false}
               />
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Due Today Section */}
-      {dueToday.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-amber-800">
-              <Clock className="w-5 h-5" />
-              Due Today
-              <Badge variant="secondary" className="ml-auto bg-amber-100 text-amber-800">
-                {dueToday.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {dueToday.map((revision) => (
-              <RevisionCard
-                key={revision.surahNumber}
-                revision={revision}
-                onComplete={() => window.location.reload()}
-              />
-            ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Completed Today Section */}
-      {completed.length > 0 && (
+      {completedRevisions.length > 0 && (
         <Card className="border-emerald-200 bg-emerald-50">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-emerald-800">
               <Target className="w-5 h-5" />
               Completed Today
               <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-800">
-                {completed.length}
+                {completedRevisions.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {completed.map((revision) => (
+            {completedRevisions.map((revision) => (
               <RevisionCard
                 key={revision.surahNumber}
                 revision={revision}
-                onComplete={() => window.location.reload()}
+                onComplete={() => {}}
+                isCompleted={true}
               />
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Upcoming This Week */}
-      {upcomingRevisions.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Coming This Week
-              <Badge variant="outline" className="ml-auto">
-                {upcomingRevisions.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {upcomingRevisions.slice(0, 5).map((upcoming) => {
-                const surah = getSurahInfo(upcoming.surahNumber);
-                const dueDate = new Date(upcoming.nextRevision);
-                const daysUntil = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                
-                return (
-                  <div key={upcoming.surahNumber} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">{surah?.name}</p>
-                      <p className="text-xs text-gray-500">{surah?.transliteration}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days`}
-                    </Badge>
-                  </div>
-                );
-              })}
-              {upcomingRevisions.length > 5 && (
-                <p className="text-sm text-gray-500 text-center pt-2">
-                  And {upcomingRevisions.length - 5} more...
-                </p>
-              )}
-            </div>
           </CardContent>
         </Card>
       )}
