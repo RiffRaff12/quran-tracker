@@ -8,29 +8,25 @@ import { useToast } from '@/hooks/use-toast'
 export default function Auth() {
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
+  const [submitted, setSubmitted] = useState(false)
   const { toast } = useToast()
 
-  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    })
-
+    // Insert into pending_users
+    const { error } = await supabase.from('pending_users').insert({ email })
     if (error) {
       toast({
         variant: 'destructive',
-        title: 'Error signing in',
+        title: 'Registration error',
         description: error.message,
       })
     } else {
+      setSubmitted(true)
       toast({
-        title: 'Check your email!',
-        description: 'A magic link has been sent to you to sign in.',
+        title: 'Registration submitted',
+        description: 'Your registration is pending admin approval.',
       })
     }
     setLoading(false)
@@ -41,25 +37,32 @@ export default function Auth() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl text-emerald-800">Quran Revision Tracker</CardTitle>
-          <CardDescription>Sign in to track your revision progress</CardDescription>
+          <CardDescription>Sign up to request access</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <Input
-                type="email"
-                placeholder="Your email"
-                value={email}
-                required={true}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+          {submitted ? (
+            <div className="text-center text-emerald-700 font-medium py-8">
+              Your registration is pending admin approval.<br />You will be notified by email if approved.
             </div>
-            <div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Sending...' : 'Send Magic Link'}
-              </Button>
-            </div>
-          </form>
+          ) : (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <Input
+                  type="email"
+                  placeholder="Your email"
+                  value={email}
+                  required={true}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading || submitted}
+                />
+              </div>
+              <div>
+                <Button type="submit" className="w-full" disabled={loading || submitted}>
+                  {loading ? 'Submitting...' : 'Request Access'}
+                </Button>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -11,6 +11,8 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { Toaster } from './components/ui/toaster';
 import { Toaster as Sonner } from './components/ui/sonner';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import AdminPendingUsers from './pages/AdminPendingUsers';
+import * as pushNotifications from './utils/pushNotifications';
 
 const queryClient = new QueryClient();
 
@@ -51,6 +53,7 @@ const AuthenticatedApp = () => {
           )
         } 
       />
+      <Route path="/admin/pending-users" element={<AdminPendingUsers />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -71,6 +74,21 @@ function App() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Notification permission and listener setup
+  useEffect(() => {
+    (async () => {
+      const granted = await pushNotifications.requestNotificationPermission();
+      if (!granted) {
+        // Optionally show UI to prompt user to enable notifications
+        console.log('User did not grant notification permissions');
+      }
+      // Listen for notification actions (optional: handle navigation, etc.)
+      pushNotifications.listenForNotificationActions((action) => {
+        console.log('Notification action performed:', action);
+      });
+    })();
   }, []);
 
   return (

@@ -49,3 +49,12 @@ export interface UpcomingRevision {
   surahNumber: number;
   nextRevision: string;
 }
+
+export interface ScheduledNotification {
+  id: string; // unique identifier for the notification
+  surahNumber: number;
+  fireDate: string; // ISO string for when to trigger
+  title: string;
+  body: string;
+  delivered: boolean; // whether the notification has been delivered
+}

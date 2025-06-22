@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from 'lucide-react';
-import { getUpcomingRevisions, getSurahRevisions } from '@/utils/dataManager';
+import { getUpcomingRevisions, getSurahRevisions, getAllRevisionLogs } from '@/utils/dataManager';
 import { SurahData } from '@/types/revision';
 import { SURAHS } from '@/utils/surahData';
 import { supabase } from '@/lib/supabaseClient';
@@ -15,16 +15,15 @@ const RevisionCalendar = () => {
   });
   
   const { data: revisionHistory = [], isLoading: isLoadingHistory } = useQuery({
-      queryKey: ['revisionHistory'],
-      queryFn: async () => {
-          const { data, error } = await supabase
-              .from('revision_history')
-              .select('*')
-              .order('revision_date', { ascending: false })
-              .limit(10);
-          if (error) throw error;
-          return data;
-      },
+    queryKey: ['revisionHistory'],
+    queryFn: async () => {
+      const logs = await getAllRevisionLogs();
+      // Flatten and sort logs to get the 10 most recent revision history entries
+      return logs
+        .flatMap(log => log.revisionHistory)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10);
+    },
   });
 
   const formatDate = (date: string) => {
