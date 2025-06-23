@@ -44,27 +44,27 @@ const RevisionCard = ({ revision, onComplete, isCompleted }: RevisionCardProps) 
   return (
     <>
       <Card
-        className={`transition-all hover:shadow-md touch-manipulation p-3 ${
+        className={`transition-all hover:shadow-md touch-manipulation p-2 sm:p-3 w-full max-w-full cursor-pointer ${
           isCompleted ? 'bg-emerald-50 border-emerald-200' : 'bg-white'
         }`}
         onClick={() => !isCompleted && setShowDifficultyDialog(true)}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between w-full gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div
-              className={`text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
+              className={`text-sm h-10 w-10 sm:h-8 sm:w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
                 isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
               }`}
             >
               {surah.number}
             </div>
-            <div>
-              <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
-              <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-base truncate">{`${surah.transliteration} (${surah.name})`}</h3>
+              <p className="text-xs text-muted-foreground">{`${surah.verses} verses`}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 ml-3">
+          <div className="flex items-center gap-2 ml-2">
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-emerald-600" />
             ) : (

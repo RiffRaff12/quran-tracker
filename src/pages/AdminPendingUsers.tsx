@@ -143,32 +143,28 @@ export default function AdminPendingUsers() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center p-2 sm:p-4 w-full max-w-full">
+      <Card className="w-full max-w-2xl p-2 sm:p-4">
         <CardHeader>
-          <CardTitle>Pending User Registrations</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Pending User Registrations</CardTitle>
         </CardHeader>
         <CardContent>
           {pendingUsers.length === 0 ? (
             <div className="text-center text-gray-600 py-8">No pending users.</div>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr>
-                  <th className="py-2 px-4 border-b">Email</th>
-                  <th className="py-2 px-4 border-b">Requested At</th>
-                  <th className="py-2 px-4 border-b">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <div className="space-y-4">
+              {/* Mobile: stacked cards, Desktop: table */}
+              <div className="block md:hidden w-full">
                 {pendingUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td className="py-2 px-4 border-b">{user.email}</td>
-                    <td className="py-2 px-4 border-b">{new Date(user.created_at).toLocaleString()}</td>
-                    <td className="py-2 px-4 border-b">
+                  <div key={user.id} className="border rounded-lg p-3 flex flex-col gap-2 w-full">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-sm break-all">{user.email}</span>
+                      <span className="text-xs text-gray-500">Requested: {new Date(user.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="flex flex-col gap-2 mt-2">
                       <Button
                         variant="default"
-                        className="mr-2"
+                        className="h-12 w-full"
                         onClick={() => handleApprove(user)}
                         disabled={loading}
                       >
@@ -176,16 +172,56 @@ export default function AdminPendingUsers() {
                       </Button>
                       <Button
                         variant="destructive"
+                        className="h-12 w-full"
                         onClick={() => handleReject(user)}
                         disabled={loading}
                       >
                         Reject
                       </Button>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              <div className="hidden md:block">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="py-2 px-4 border-b">Email</th>
+                      <th className="py-2 px-4 border-b">Requested At</th>
+                      <th className="py-2 px-4 border-b">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td className="py-2 px-4 border-b break-all">{user.email}</td>
+                        <td className="py-2 px-4 border-b">{new Date(user.created_at).toLocaleString()}</td>
+                        <td className="py-2 px-4 border-b">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="default"
+                              className="h-10"
+                              onClick={() => handleApprove(user)}
+                              disabled={loading}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              className="h-10"
+                              onClick={() => handleReject(user)}
+                              disabled={loading}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

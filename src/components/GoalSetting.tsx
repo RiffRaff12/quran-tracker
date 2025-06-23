@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Target, Calendar, Trophy } from 'lucide-react';
-import { getGoals, updateGoals, getGoalProgress } from '@/utils/dataManager';
+import { getUserProfile, updateGoals } from '@/utils/dataManager';
 import { toast } from '@/hooks/use-toast';
 
 const GoalSetting = () => {
@@ -24,26 +23,27 @@ const GoalSetting = () => {
 
   useEffect(() => {
     loadGoals();
-    loadProgress();
+    // TODO: Implement actual progress calculation based on revision data
+    setProgress({ dailyProgress: 0, weeklyProgress: 0, monthlyProgress: 0 });
   }, []);
 
-  const loadGoals = () => {
-    const savedGoals = getGoals();
-    setGoals(savedGoals);
+  const loadGoals = async () => {
+    try {
+      const profile = await getUserProfile();
+      setGoals(profile.goals);
+    } catch (e) {
+      // fallback to defaults
+      setGoals({ dailyRevisions: 3, weeklyRevisions: 20, memorizePerMonth: 2 });
+    }
   };
 
-  const loadProgress = () => {
-    const progressData = getGoalProgress();
-    setProgress(progressData);
-  };
-
-  const handleSaveGoals = () => {
-    updateGoals(goals);
+  const handleSaveGoals = async () => {
+    await updateGoals(goals);
     toast({
       title: "Goals Updated",
       description: "Your revision goals have been saved successfully.",
     });
-    loadProgress(); // Refresh progress after updating goals
+    // Optionally reload progress here
   };
 
   const handleGoalChange = (goalType, value) => {
@@ -58,22 +58,22 @@ const GoalSetting = () => {
   const monthlyProgressPercentage = goals.memorizePerMonth > 0 ? (progress.monthlyProgress / goals.memorizePerMonth) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full p-2 sm:p-4 overflow-y-auto">
       {/* Goal Setting */}
-      <Card>
+      <Card className="w-full max-w-full p-2 sm:p-4">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Target className="h-5 w-5" />
             Set Your Goals
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Define your daily, weekly, and monthly targets to stay motivated
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardContent className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
             <div className="space-y-2">
-              <Label htmlFor="dailyRevisions">Daily Revisions</Label>
+              <Label htmlFor="dailyRevisions" className="text-xs sm:text-sm">Daily Revisions</Label>
               <Input
                 id="dailyRevisions"
                 type="number"
@@ -82,6 +82,7 @@ const GoalSetting = () => {
                 value={goals.dailyRevisions}
                 onChange={(e) => handleGoalChange('dailyRevisions', e.target.value)}
                 placeholder="3"
+                className="h-12 text-base"
               />
               <p className="text-xs text-muted-foreground">
                 Number of surahs to revise daily
@@ -89,7 +90,7 @@ const GoalSetting = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="weeklyRevisions">Weekly Revisions</Label>
+              <Label htmlFor="weeklyRevisions" className="text-xs sm:text-sm">Weekly Revisions</Label>
               <Input
                 id="weeklyRevisions"
                 type="number"
@@ -98,6 +99,7 @@ const GoalSetting = () => {
                 value={goals.weeklyRevisions}
                 onChange={(e) => handleGoalChange('weeklyRevisions', e.target.value)}
                 placeholder="20"
+                className="h-12 text-base"
               />
               <p className="text-xs text-muted-foreground">
                 Total revisions to complete weekly
@@ -105,7 +107,7 @@ const GoalSetting = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="memorizePerMonth">New Surahs/Month</Label>
+              <Label htmlFor="memorizePerMonth" className="text-xs sm:text-sm">New Surahs/Month</Label>
               <Input
                 id="memorizePerMonth"
                 type="number"
@@ -114,6 +116,7 @@ const GoalSetting = () => {
                 value={goals.memorizePerMonth}
                 onChange={(e) => handleGoalChange('memorizePerMonth', e.target.value)}
                 placeholder="2"
+                className="h-12 text-base"
               />
               <p className="text-xs text-muted-foreground">
                 New surahs to memorize monthly
@@ -121,17 +124,17 @@ const GoalSetting = () => {
             </div>
           </div>
 
-          <Button onClick={handleSaveGoals} className="w-full">
+          <Button onClick={handleSaveGoals} className="h-12 w-full text-base">
             Save Goals
           </Button>
         </CardContent>
       </Card>
 
       {/* Progress Tracking */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+        <Card className="w-full max-w-full">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between text-base sm:text-lg">
               <span className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Daily Goal
@@ -141,7 +144,7 @@ const GoalSetting = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span>Progress</span>
                 <span>{progress.dailyProgress}/{goals.dailyRevisions}</span>
               </div>
@@ -154,9 +157,9 @@ const GoalSetting = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="w-full max-w-full">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between text-base sm:text-lg">
               <span className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Weekly Goal
@@ -166,7 +169,7 @@ const GoalSetting = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span>Progress</span>
                 <span>{progress.weeklyProgress}/{goals.weeklyRevisions}</span>
               </div>
@@ -179,9 +182,9 @@ const GoalSetting = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="w-full max-w-full">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between text-base sm:text-lg">
               <span className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Monthly Goal
@@ -191,7 +194,7 @@ const GoalSetting = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span>New Surahs</span>
                 <span>{progress.monthlyProgress}/{goals.memorizePerMonth}</span>
               </div>

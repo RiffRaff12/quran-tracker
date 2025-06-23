@@ -97,12 +97,13 @@ const SurahManager = () => {
   if (isLoading) return <div>Loading Surah data...</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex space-x-2">
+    <div className="space-y-4 w-full max-w-full p-2 sm:p-4">
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
           onClick={() => setFilter('all')}
           size="sm"
+          className="h-12 w-full sm:w-auto"
         >
           All
         </Button>
@@ -110,6 +111,7 @@ const SurahManager = () => {
           variant={filter === 'memorized' ? 'default' : 'outline'}
           onClick={() => setFilter('memorized')}
           size="sm"
+          className="h-12 w-full sm:w-auto"
         >
           Memorized
         </Button>
@@ -117,11 +119,12 @@ const SurahManager = () => {
           variant={filter === 'unmemorized' ? 'default' : 'outline'}
           onClick={() => setFilter('unmemorized')}
           size="sm"
+          className="h-12 w-full sm:w-auto"
         >
           Unmemorized
         </Button>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 max-h-[60vh] overflow-y-auto w-full">
         {filteredSurahs.map(surah => {
           const isMemorized = memorizedSurahNumbers.has(surah.number);
           const isUpdating =
@@ -131,24 +134,24 @@ const SurahManager = () => {
           return (
             <Dialog key={surah.number} onOpenChange={(isOpen) => !isOpen && setSelectedSurah(null)}>
               <div
-                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                className={`flex items-center justify-between p-2 sm:p-3 rounded-lg border cursor-pointer transition-all w-full touch-manipulation ${
                   isMemorized
                     ? 'bg-emerald-50 border-emerald-200'
                     : 'bg-white hover:bg-gray-50'
                 } ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <DialogTrigger asChild>
-                  <div className="flex items-center gap-3 flex-grow" onClick={() => setSelectedSurah(surah)}>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-grow min-w-0" onClick={() => setSelectedSurah(surah)}>
                     <div
-                      className={`text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
+                      className={`text-xs sm:text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
                         isMemorized ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
                       }`}
                     >
                       {surah.number}
                     </div>
-                    <div>
-                      <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
-                      <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-base truncate">{`${surah.transliteration} (${surah.name})`}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
                     </div>
                   </div>
                 </DialogTrigger>
