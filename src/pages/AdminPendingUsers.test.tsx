@@ -70,8 +70,8 @@ describe('AdminPendingUsers', () => {
   it('displays pending users list for admin users', async () => {
     renderWithProviders(<AdminPendingUsers />);
     await waitFor(() => {
-      expect(screen.getByText('pending1@test.com')).toBeInTheDocument();
-      expect(screen.getByText('pending2@test.com')).toBeInTheDocument();
+      expect(screen.getAllByText('pending1@test.com')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('pending2@test.com')[1]).toBeInTheDocument();
     });
   });
 
@@ -86,7 +86,7 @@ describe('AdminPendingUsers', () => {
 
     renderWithProviders(<AdminPendingUsers />);
     await waitFor(() => {
-      expect(screen.getByText('pending2@test.com')).toBeInTheDocument();
+      expect(screen.getAllByText('pending2@test.com')[1]).toBeInTheDocument();
     });
 
     const approveButton = screen.getAllByText('Approve')[0];
@@ -100,7 +100,7 @@ describe('AdminPendingUsers', () => {
   it('handles user rejection successfully', async () => {
     renderWithProviders(<AdminPendingUsers />);
     await waitFor(() => {
-      expect(screen.getByText('pending2@test.com')).toBeInTheDocument();
+      expect(screen.getAllByText('pending2@test.com')[1]).toBeInTheDocument();
     });
 
     const rejectButton = screen.getAllByText('Reject')[0];

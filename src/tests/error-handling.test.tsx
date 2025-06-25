@@ -94,11 +94,15 @@ describe('Error Handling', () => {
 
       renderWithProviders(<AdminPendingUsers />);
       await waitFor(() => {
-        expect(screen.getByText('pending1@test.com')).toBeInTheDocument();
+        expect(screen.getAllByText('pending1@test.com')[0]).toBeInTheDocument();
       });
 
-      const approveButton = screen.getAllByText('Approve')[0];
-      fireEvent.click(approveButton);
+      // Find the Approve button in the same container as the email
+      const pendingUserCard = screen.getAllByText('pending1@test.com')[0].closest('.border');
+      const approveButton = pendingUserCard
+        ? Array.from(pendingUserCard.querySelectorAll('button')).find(btn => btn.textContent?.includes('Approve'))
+        : screen.getAllByText('Approve')[0];
+      fireEvent.click(approveButton!);
 
       await waitFor(() => {
         expect(screen.getByText(/failed to create user/i)).toBeInTheDocument();
@@ -130,11 +134,15 @@ describe('Error Handling', () => {
 
       renderWithProviders(<AdminPendingUsers />);
       await waitFor(() => {
-        expect(screen.getByText('pending1@test.com')).toBeInTheDocument();
+        expect(screen.getAllByText('pending1@test.com')[0]).toBeInTheDocument();
       });
 
-      const rejectButton = screen.getAllByText('Reject')[0];
-      fireEvent.click(rejectButton);
+      // Find the Reject button in the same container as the email
+      const pendingUserCard = screen.getAllByText('pending1@test.com')[0].closest('.border');
+      const rejectButton = pendingUserCard
+        ? Array.from(pendingUserCard.querySelectorAll('button')).find(btn => btn.textContent?.includes('Reject'))
+        : screen.getAllByText('Reject')[0];
+      fireEvent.click(rejectButton!);
 
       await waitFor(() => {
         // Check that a toast (role='status') appears, indicating an error toast was triggered

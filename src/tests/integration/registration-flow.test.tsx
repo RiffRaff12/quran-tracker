@@ -28,7 +28,7 @@ describe('Registration Flow Integration', () => {
     // 2. Admin views and approves registration
     renderWithProviders(<AdminPendingUsers />);
     await waitFor(() => {
-      expect(screen.getByText(testEmail)).toBeInTheDocument();
+      expect(screen.getAllByText(testEmail)[0]).toBeInTheDocument();
     });
 
     const approveButton = screen.getAllByText('Approve')[0];
@@ -59,7 +59,7 @@ describe('Registration Flow Integration', () => {
     // 2. Admin rejects registration
     renderWithProviders(<AdminPendingUsers />);
     await waitFor(() => {
-      expect(screen.getByText(testEmail)).toBeInTheDocument();
+      expect(screen.getAllByText(testEmail)[0]).toBeInTheDocument();
     });
 
     const rejectButton = screen.getAllByText('Reject')[0];
