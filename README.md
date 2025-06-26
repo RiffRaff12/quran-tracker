@@ -1,8 +1,25 @@
-# Welcome to your Lovable project
+# Quran Revision Tracker (Offline-First)
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/d7a84027-05d5-447e-b02c-0ef4536b4066
+
+## Offline-First Usage
+
+This app is now fully offline and does not require any login, registration, or internet connection. All your data is stored locally in your browser using IndexedDB.
+
+- **No registration or login required**
+- **Works offline, even on first install or after refresh**
+- **All memorised surahs, revision history, and next revision dates are saved locally**
+
+## Backup & Restore (Export/Import)
+
+You can back up your data or move it to another device:
+
+- **Export:** Click the export button (⬇️) in the app header to download all your data as a JSON file.
+- **Import:** Click the import button (⬆️) in the app header and select a previously exported JSON file to restore your data.
+
+> Tip: Use this feature to transfer your progress between devices or to keep a backup for peace of mind.
 
 ## How can I edit this code?
 
