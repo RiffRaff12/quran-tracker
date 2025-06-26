@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calendar, List, Target, BookOpen } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Calendar, List, Target, BookOpen, Download, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Dashboard from '@/components/Dashboard';
@@ -7,9 +7,63 @@ import SurahManager from '@/components/SurahManager';
 import RevisionCalendar from '@/components/RevisionCalendar';
 import GoalSetting from '@/components/GoalSetting';
 import RecommendedRevisions from '@/components/RecommendedRevisions';
+import { supabase } from '@/lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import * as idbManager from '@/utils/idbManager';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/', { replace: true });
+  };
+
+  // Export all IndexedDB data as JSON
+  const handleExport = async () => {
+    const surahRevisions = await idbManager.getAllSurahRevisions();
+    const revisionLogs = await idbManager.getAllRevisionLogs();
+    const userProfile = await idbManager.getUserProfileOffline();
+    const scheduledNotifications = await idbManager.getAllScheduledNotifications();
+    const data = {
+      surahRevisions,
+      revisionLogs,
+      userProfile,
+      scheduledNotifications,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ayat-revision-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import data from JSON file
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const data = JSON.parse(text);
+      if (data.surahRevisions) await idbManager.setSurahRevisions(data.surahRevisions);
+      if (data.revisionLogs) {
+        for (const log of data.revisionLogs) await idbManager.addRevisionLog(log);
+      }
+      if (data.userProfile) await idbManager.setUserProfileOffline(data.userProfile);
+      if (data.scheduledNotifications) {
+        for (const notif of data.scheduledNotifications) await idbManager.addScheduledNotification(notif);
+      }
+      alert('Backup imported successfully!');
+    } catch (e) {
+      alert('Failed to import backup: ' + (e as Error).message);
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const tabs = [
     { id: 'recommendations', label: 'Today', icon: Target },
@@ -44,17 +98,29 @@ const Index = () => {
               {tabs.find(tab => tab.id === activeTab)?.label}
             </p>
           </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport} title="Export Backup"><Download className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} title="Import Backup"><Upload className="w-4 h-4" /></Button>
+            <input ref={fileInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImport} />
+          </div>
         </div>
       </header>
 
       {/* Desktop Header */}
-      <header className="hidden md:block text-center py-6 md:py-8 w-full">
-        <h1 className="text-2xl md:text-4xl font-bold text-emerald-800 mb-1 md:mb-2">
-          Quran Revision Tracker
-        </h1>
-        <p className="text-emerald-600 text-base md:text-lg">
-          Strengthen your memorization with intelligent spaced repetition
-        </p>
+      <header className="hidden md:flex items-center justify-between text-center py-6 md:py-8 w-full px-8">
+        <div>
+          <h1 className="text-2xl md:text-4xl font-bold text-emerald-800 mb-1 md:mb-2">
+            Quran Revision Tracker
+          </h1>
+          <p className="text-emerald-600 text-base md:text-lg">
+            Strengthen your memorization with intelligent spaced repetition
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport} title="Export Backup"><Download className="w-4 h-4" /></Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} title="Import Backup"><Upload className="w-4 h-4" /></Button>
+          <input ref={fileInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImport} />
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col w-full max-w-full overflow-y-auto">

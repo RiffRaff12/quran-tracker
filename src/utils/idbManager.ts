@@ -1,6 +1,9 @@
 import { openDB, DBSchema } from 'idb';
 import { SurahData, RevisionData, Profile } from '@/types/revision';
 
+// This module is now the sole data source for the app (offline-only mode)
+// All data is stored and retrieved from IndexedDB
+
 interface AyatRevisionDB extends DBSchema {
   surahRevisions: {
     key: number; // surahNumber
@@ -86,7 +89,7 @@ export async function setUserProfileOffline(profile: Profile) {
   await db.put('userProfile', profile, 'profile');
 }
 
-// Sync Metadata
+// Sync Metadata (not used in offline-only mode, but kept for possible future use)
 export async function getLastSynced(): Promise<string | undefined> {
   const db = await getDB();
   const meta = await db.get('syncMeta', 'lastSynced');
