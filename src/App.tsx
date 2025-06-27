@@ -32,7 +32,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <Router>
+        <Router future={{ v7_relativeSplatPath: true }}>
           <div className="App">
             <Routes>
               <Route path="/" element={<Index />} />

@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Target, AlertTriangle } from 'lucide-react';
-import { getTodaysRevisions, getUpcomingRevisions, completeRevision } from '@/utils/dataManager';
+import { Clock, Target, AlertTriangle, Plus } from 'lucide-react';
+import { getTodaysRevisions, getUpcomingRevisions, completeRevision, addBackdatedRevision, getSurahRevisions } from '@/utils/dataManager';
 import { SURAHS } from '@/utils/surahData';
 import RevisionCard from '@/components/RevisionCard';
 import { useToast } from '@/hooks/use-toast';
-import { TodaysRevision } from '@/types/revision';
+import { TodaysRevision, SurahData } from '@/types/revision';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 const RecommendedRevisions = () => {
   const queryClient = useQueryClient();
@@ -15,6 +20,33 @@ const RecommendedRevisions = () => {
 
   // State to track which revisions have been completed in the current session
   const [completedInSession, setCompletedInSession] = useState<number[]>([]);
+
+  // State for Add Missed Revision dialog
+  const [open, setOpen] = useState(false);
+  const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAddMissedRevision = async () => {
+    if (!selectedSurah || !selectedDate || !selectedDifficulty) return;
+    setSubmitting(true);
+    try {
+      await addBackdatedRevision(selectedSurah, selectedDifficulty, selectedDate);
+      toast({ title: 'Missed revision added', description: 'Your backdated revision was logged.' });
+      setOpen(false);
+      setSelectedSurah(undefined);
+      setSelectedDate(undefined);
+      setSelectedDifficulty('easy');
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Fetch revisions using React Query
   const { data: todaysRevisions = [], isLoading: isLoadingToday } = useQuery<TodaysRevision[]>({
@@ -25,6 +57,12 @@ const RecommendedRevisions = () => {
   const { data: upcomingRevisions = [], isLoading: isLoadingUpcoming } = useQuery({
     queryKey: ['upcomingRevisions'],
     queryFn: () => getUpcomingRevisions(7),
+  });
+
+  // Fetch surah revisions data to get learning step information
+  const { data: surahRevisions = [], isLoading: isLoadingSurahRevisions } = useQuery<SurahData[]>({
+    queryKey: ['surahRevisions'],
+    queryFn: getSurahRevisions,
   });
 
   // Mutation for completing a revision
@@ -61,6 +99,11 @@ const RecommendedRevisions = () => {
     return SURAHS.find(s => s.number === surahNumber);
   };
 
+  const getLearningStep = (surahNumber: number): number => {
+    const surahData = surahRevisions.find(s => s.surahNumber === surahNumber);
+    return surahData?.learningStep || 0;
+  };
+
   const dueRevisions = todaysRevisions.filter(
     r => !completedInSession.includes(r.surahNumber)
   );
@@ -69,7 +112,7 @@ const RecommendedRevisions = () => {
     r => completedInSession.includes(r.surahNumber)
   );
 
-  if (isLoadingToday) {
+  if (isLoadingToday || isLoadingSurahRevisions) {
     return <div>Loading revisions...</div>; // Or a nice skeleton loader
   }
 
@@ -91,6 +134,66 @@ const RecommendedRevisions = () => {
 
   return (
     <div className="space-y-6">
+      {/* Add Missed Revision Button and Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex justify-end">
+          <DialogTrigger asChild>
+            <Button variant="outline" className="mb-2"><Plus className="w-4 h-4 mr-2" />Add Missed Revision</Button>
+          </DialogTrigger>
+        </div>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Missed Revision</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="surah">Surah</Label>
+              <Select value={selectedSurah ? String(selectedSurah) : undefined} onValueChange={v => setSelectedSurah(Number(v))}>
+                <SelectTrigger id="surah">
+                  <SelectValue placeholder="Select surah" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SURAHS.map(surah => (
+                    <SelectItem key={surah.number} value={String(surah.number)}>
+                      {surah.transliteration} ({surah.name})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="date">Date</Label>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                toDate={new Date()}
+                fromYear={2000}
+                id="date"
+              />
+            </div>
+            <div>
+              <Label htmlFor="difficulty">Difficulty</Label>
+              <Select value={selectedDifficulty} onValueChange={v => setSelectedDifficulty(v as any)}>
+                <SelectTrigger id="difficulty">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddMissedRevision} disabled={submitting || !selectedSurah || !selectedDate || !selectedDifficulty}>
+              {submitting ? 'Adding...' : 'Add Revision'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Today's Revisions */}
       {dueRevisions.length > 0 && (
         <div className="mt-8">
@@ -102,6 +205,7 @@ const RecommendedRevisions = () => {
                 revision={revision}
                 onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
                 isCompleted={false}
+                learningStep={getLearningStep(revision.surahNumber)}
               />
             ))}
           </div>
@@ -127,6 +231,7 @@ const RecommendedRevisions = () => {
                 revision={revision}
                 onComplete={() => {}}
                 isCompleted={true}
+                learningStep={getLearningStep(revision.surahNumber)}
               />
             ))}
           </CardContent>

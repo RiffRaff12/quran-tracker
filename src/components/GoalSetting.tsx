@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Target, Calendar, Trophy } from 'lucide-react';
 import { getUserProfile, updateGoals } from '@/utils/dataManager';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const GoalSetting = () => {
+  const { toast } = useToast();
   const [goals, setGoals] = useState({
     dailyRevisions: 3,
     weeklyRevisions: 20,

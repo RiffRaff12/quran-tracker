@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, Circle } from 'lucide-react';
+import { CheckCircle, Clock, Circle, BookOpen } from 'lucide-react';
 import { SURAHS } from '@/utils/surahData';
-import { completeRevision } from '@/utils/dataManager';
+import { completeRevision, getLearningPhaseStatus } from '@/utils/dataManager';
 import { TodaysRevision } from '@/types/revision';
 import RevisionDifficultyDialog from '@/components/RevisionDifficultyDialog';
 
@@ -12,9 +12,10 @@ interface RevisionCardProps {
   revision: TodaysRevision;
   onComplete: (difficulty: 'easy' | 'medium' | 'hard') => void;
   isCompleted: boolean;
+  learningStep?: number;
 }
 
-const RevisionCard = ({ revision, onComplete, isCompleted }: RevisionCardProps) => {
+const RevisionCard = ({ revision, onComplete, isCompleted, learningStep = 0 }: RevisionCardProps) => {
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
   
   const surah = SURAHS.find(s => s.number === revision.surahNumber);
@@ -40,6 +41,9 @@ const RevisionCard = ({ revision, onComplete, isCompleted }: RevisionCardProps) 
   const daysUntilDue = getDaysUntilDue();
   const isOverdue = daysUntilDue < 0;
   const isDueToday = daysUntilDue === 0;
+  
+  // Get learning phase status
+  const learningStatus = getLearningPhaseStatus(learningStep);
 
   return (
     <>
@@ -60,7 +64,15 @@ const RevisionCard = ({ revision, onComplete, isCompleted }: RevisionCardProps) 
             </div>
             <div className="min-w-0">
               <h3 className="font-semibold text-base truncate">{`${surah.transliteration} (${surah.name})`}</h3>
-              <p className="text-xs text-muted-foreground">{`${surah.verses} verses`}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xs text-muted-foreground">{`${surah.verses} verses`}</p>
+                {learningStep > 0 && (
+                  <Badge variant="outline" className={`text-xs ${learningStatus.color}`}>
+                    <BookOpen className="h-3 w-3 mr-1" />
+                    {learningStatus.status}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
 

@@ -6,8 +6,10 @@ export interface SurahData {
   interval?: number;
   difficulty?: 'easy' | 'medium' | 'hard';
   easeFactor?: number;  // Starts at 2.5, adjusts based on performance
-  learningStep?: number;  // 0 = new, 1 = learning, 2 = review
+  learningStep?: number;  // 0 = new, 1-4 = learning steps, 5+ = graduated to review
   consecutiveCorrect?: number;  // Number of consecutive correct reviews
+  lapses?: number;  // Number of times card has lapsed (failed after graduating)
+  dueDate?: string;  // When the card is due for review
 }
 
 export interface Profile {
