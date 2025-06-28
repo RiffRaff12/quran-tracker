@@ -14,7 +14,7 @@ import * as pushNotifications from './pushNotifications';
 
 export const getSurahRevisions = async (): Promise<SurahData[]> => {
   // Only use local storage
-  let local = await idbManager.getAllSurahRevisions();
+  const local = await idbManager.getAllSurahRevisions();
   return local || [];
 };
 
@@ -30,7 +30,7 @@ export const getStreak = async (): Promise<number> => {
   today.setHours(0, 0, 0, 0);
   
   let streak = 0;
-  let currentDate = new Date(today);
+  const currentDate = new Date(today);
   
   while (true) {
     const dateStr = currentDate.toISOString().split('T')[0];
@@ -128,8 +128,8 @@ export const getAllRevisionLogs = async () => {
 
 const updateSurahRevision = async (surahNumber: number, updates: Partial<SurahData>) => {
   // Update local only
-  let all = await idbManager.getAllSurahRevisions();
-  let idx = all.findIndex(s => s.surahNumber === surahNumber);
+  const all = await idbManager.getAllSurahRevisions();
+  const idx = all.findIndex(s => s.surahNumber === surahNumber);
   if (idx !== -1) {
     all[idx] = { ...all[idx], ...updates };
   } else {
@@ -174,15 +174,15 @@ const addRevisionHistory = async (surahNumber: number, difficulty: 'easy' | 'med
 export const addMemorizedSurah = async (surahNumber: number) => {
   const today = new Date();
   const nextRevision = new Date(today);
-  nextRevision.setMinutes(today.getMinutes() + 1); // First learning step: 1 minute
+  nextRevision.setDate(today.getDate() + 1); // First revision: 1 day
 
   const updates: Partial<SurahData> = {
     memorized: true,
     lastRevision: today.toISOString(),
     nextRevision: nextRevision.toISOString(),
-    interval: 0, // No interval in learning phase
+    interval: 1, // 1 day interval
     easeFactor: 2.5,
-    learningStep: 1, // Start in learning phase, step 1
+    learningStep: 1, // Start in early repetition phase, step 1
     consecutiveCorrect: 0,
     lapses: 0,
     dueDate: nextRevision.toISOString(),
@@ -210,7 +210,7 @@ export const removeMemorizedSurah = async (surahNumber: number) => {
     memorized: false,
     lastRevision: undefined,
     nextRevision: undefined,
-    interval: 0,
+    interval: 1,
     easeFactor: 2.5,
     learningStep: 0,
     consecutiveCorrect: 0,
@@ -221,7 +221,7 @@ export const removeMemorizedSurah = async (surahNumber: number) => {
 };
 
 /**
- * Processes a revision, calculates the next date using Anki's SM-2 algorithm, and updates the database.
+ * Processes a revision, calculates the next date using Quran-appropriate SM-2 algorithm, and updates the database.
  */
 export const completeRevision = async (
   surahNumber: number,
@@ -237,64 +237,55 @@ export const completeRevision = async (
   const today = new Date();
   const lastRevision = surahData.lastRevision ? new Date(surahData.lastRevision) : today;
   
-  let newInterval = surahData.interval || 0;
+  let newInterval = surahData.interval || 1;
   let newEaseFactor = surahData.easeFactor || 2.5;
   let newLearningStep = surahData.learningStep || 1;
   let newLapses = surahData.lapses || 0;
-  let nextRevision: Date;
   
-  // Anki's SM-2 Algorithm with Learning Phase
-  if (newLearningStep < 5) {
-    // Learning Phase (steps 1-4)
+  // Quran-appropriate SM-2 Algorithm
+  if (newLearningStep < 4) {
+    // Early Repetition Phase (steps 1-3) - all intervals in days
     if (difficulty === 'easy') {
-      // Graduate to review phase
-      newLearningStep = 5;
-      newInterval = 4; // First interval after graduating
-      nextRevision = new Date(today);
-      nextRevision.setDate(today.getDate() + newInterval);
-    } else if (difficulty === 'medium') {
-      // Move to next learning step
+      // Move to next step or graduate
       newLearningStep++;
       if (newLearningStep === 2) {
-        nextRevision = new Date(today);
-        nextRevision.setMinutes(today.getMinutes() + 10); // 10 minutes
+        newInterval = 2; // 2 days
       } else if (newLearningStep === 3) {
-        nextRevision = new Date(today);
-        nextRevision.setHours(today.getHours() + 1); // 1 hour
+        newInterval = 3; // 3 days
       } else if (newLearningStep === 4) {
-        nextRevision = new Date(today);
-        nextRevision.setDate(today.getDate() + 1); // 1 day
+        newInterval = 4; // Graduate to main schedule
       }
+    } else if (difficulty === 'medium') {
+      // Stay on current step, repeat interval
+      newInterval = newLearningStep; // 1, 2, or 3 days
     } else if (difficulty === 'hard') {
-      // Reset to first learning step
+      // Reset to first step
       newLearningStep = 1;
-      nextRevision = new Date(today);
-      nextRevision.setMinutes(today.getMinutes() + 1); // 1 minute
+      newInterval = 1; // 1 day
+      newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
     }
   } else {
-    // Review Phase (graduated cards)
+    // Main Schedule Phase (graduated cards)
     if (difficulty === 'easy') {
-      // Anki's ease factor calculation
+      // SM-2 ease factor calculation
       newEaseFactor = Math.max(newEaseFactor + 0.15, 1.3);
       newInterval = Math.round(newInterval * newEaseFactor);
-      nextRevision = new Date(today);
-      nextRevision.setDate(today.getDate() + newInterval);
     } else if (difficulty === 'medium') {
-      // Anki's ease factor calculation
+      // SM-2 ease factor calculation
       newEaseFactor = Math.max(newEaseFactor - 0.15, 1.3);
       newInterval = Math.round(newInterval * newEaseFactor);
-      nextRevision = new Date(today);
-      nextRevision.setDate(today.getDate() + newInterval);
     } else if (difficulty === 'hard') {
-      // Lapse: return to learning phase
+      // Lapse: return to early repetition phase
       newLapses++;
       newLearningStep = 1;
       newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
-      newInterval = 0;
-      nextRevision = new Date(today);
-      nextRevision.setMinutes(today.getMinutes() + 1); // 1 minute
+      newInterval = 1; // Reset to 1 day
     }
   }
+  
+  // Calculate next revision date (always in days)
+  const nextRevision = new Date(today);
+  nextRevision.setDate(today.getDate() + newInterval);
   
   // Update surah data
   const updates: Partial<SurahData> = {
@@ -380,64 +371,55 @@ export const addBackdatedRevision = async (
     throw new Error(`Surah ${surahNumber} not found in revisions`);
   }
 
-  let newInterval = surahData.interval || 0;
+  let newInterval = surahData.interval || 1;
   let newEaseFactor = surahData.easeFactor || 2.5;
   let newLearningStep = surahData.learningStep || 1;
   let newLapses = surahData.lapses || 0;
-  let nextRevision: Date;
-
-  // Anki's SM-2 Algorithm with Learning Phase (same as completeRevision)
-  if (newLearningStep < 5) {
-    // Learning Phase (steps 1-4)
+  
+  // Quran-appropriate SM-2 Algorithm
+  if (newLearningStep < 4) {
+    // Early Repetition Phase (steps 1-3) - all intervals in days
     if (difficulty === 'easy') {
-      // Graduate to review phase
-      newLearningStep = 5;
-      newInterval = 4; // First interval after graduating
-      nextRevision = new Date(revisionDate);
-      nextRevision.setDate(revisionDate.getDate() + newInterval);
-    } else if (difficulty === 'medium') {
-      // Move to next learning step
+      // Move to next step or graduate
       newLearningStep++;
       if (newLearningStep === 2) {
-        nextRevision = new Date(revisionDate);
-        nextRevision.setMinutes(revisionDate.getMinutes() + 10); // 10 minutes
+        newInterval = 2; // 2 days
       } else if (newLearningStep === 3) {
-        nextRevision = new Date(revisionDate);
-        nextRevision.setHours(revisionDate.getHours() + 1); // 1 hour
+        newInterval = 3; // 3 days
       } else if (newLearningStep === 4) {
-        nextRevision = new Date(revisionDate);
-        nextRevision.setDate(revisionDate.getDate() + 1); // 1 day
+        newInterval = 4; // Graduate to main schedule
       }
+    } else if (difficulty === 'medium') {
+      // Stay on current step, repeat interval
+      newInterval = newLearningStep; // 1, 2, or 3 days
     } else if (difficulty === 'hard') {
-      // Reset to first learning step
+      // Reset to first step
       newLearningStep = 1;
-      nextRevision = new Date(revisionDate);
-      nextRevision.setMinutes(revisionDate.getMinutes() + 1); // 1 minute
+      newInterval = 1; // 1 day
+      newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
     }
   } else {
-    // Review Phase (graduated cards)
+    // Main Schedule Phase (graduated cards)
     if (difficulty === 'easy') {
-      // Anki's ease factor calculation
+      // SM-2 ease factor calculation
       newEaseFactor = Math.max(newEaseFactor + 0.15, 1.3);
       newInterval = Math.round(newInterval * newEaseFactor);
-      nextRevision = new Date(revisionDate);
-      nextRevision.setDate(revisionDate.getDate() + newInterval);
     } else if (difficulty === 'medium') {
-      // Anki's ease factor calculation
+      // SM-2 ease factor calculation
       newEaseFactor = Math.max(newEaseFactor - 0.15, 1.3);
       newInterval = Math.round(newInterval * newEaseFactor);
-      nextRevision = new Date(revisionDate);
-      nextRevision.setDate(revisionDate.getDate() + newInterval);
     } else if (difficulty === 'hard') {
-      // Lapse: return to learning phase
+      // Lapse: return to early repetition phase
       newLapses++;
       newLearningStep = 1;
       newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
-      newInterval = 0;
-      nextRevision = new Date(revisionDate);
-      nextRevision.setMinutes(revisionDate.getMinutes() + 1); // 1 minute
+      newInterval = 1; // Reset to 1 day
     }
   }
+
+  // Calculate next revision date (always in days)
+  const nextRevision = new Date(revisionDate);
+  nextRevision.setDate(revisionDate.getDate() + newInterval);
 
   // If the next revision is in the past, bump it to today
   const today = new Date();
@@ -495,17 +477,17 @@ export const addBackdatedRevision = async (
 export const getLearningPhaseStatus = (learningStep: number): { status: string; description: string; color: string } => {
   if (learningStep === 0) {
     return { status: 'New', description: 'Not yet started', color: 'text-gray-500' };
-  } else if (learningStep < 5) {
-    const stepNames = ['', 'Learning Step 1', 'Learning Step 2', 'Learning Step 3', 'Learning Step 4'];
-    const descriptions = ['', '1 minute interval', '10 minute interval', '1 hour interval', '1 day interval'];
-    const colors = ['', 'text-blue-600', 'text-blue-600', 'text-blue-600', 'text-blue-600'];
+  } else if (learningStep < 4) {
+    const stepNames = ['', 'Early Repetition 1', 'Early Repetition 2', 'Early Repetition 3'];
+    const descriptions = ['', '1 day interval', '2 day interval', '3 day interval'];
+    const colors = ['', 'text-blue-600', 'text-blue-600', 'text-blue-600'];
     return { 
       status: stepNames[learningStep], 
       description: descriptions[learningStep], 
       color: colors[learningStep] 
     };
   } else {
-    return { status: 'Graduated', description: 'In review phase', color: 'text-green-600' };
+    return { status: 'Graduated', description: 'In main schedule', color: 'text-green-600' };
   }
 };
 
