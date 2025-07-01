@@ -61,6 +61,29 @@ const SurahManager = () => {
 
   const addSurahMutation = useMutation({
     mutationFn: addMemorizedSurah,
+    onMutate: async (surahNumber: number) => {
+      await queryClient.cancelQueries({ queryKey: ['surahRevisions'] });
+      const previousData = queryClient.getQueryData<SurahData[]>(['surahRevisions']);
+      if (previousData) {
+        queryClient.setQueryData<SurahData[]>(['surahRevisions'], prev =>
+          prev?.map(surah =>
+            surah.surahNumber === surahNumber
+              ? { ...surah, memorized: true }
+              : surah
+          )
+        );
+      }
+      return { previousData };
+    },
+    onError: (err, surahNumber, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['surahRevisions'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
       queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
@@ -69,6 +92,29 @@ const SurahManager = () => {
 
   const removeSurahMutation = useMutation({
     mutationFn: removeMemorizedSurah,
+    onMutate: async (surahNumber: number) => {
+      await queryClient.cancelQueries({ queryKey: ['surahRevisions'] });
+      const previousData = queryClient.getQueryData<SurahData[]>(['surahRevisions']);
+      if (previousData) {
+        queryClient.setQueryData<SurahData[]>(['surahRevisions'], prev =>
+          prev?.map(surah =>
+            surah.surahNumber === surahNumber
+              ? { ...surah, memorized: false }
+              : surah
+          )
+        );
+      }
+      return { previousData };
+    },
+    onError: (err, surahNumber, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['surahRevisions'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
       queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
@@ -98,12 +144,12 @@ const SurahManager = () => {
 
   return (
     <div className="space-y-4 w-full max-w-full p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row gap-2 w-full">
+      <div className="flex flex-row gap-2 w-full">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
           onClick={() => setFilter('all')}
           size="sm"
-          className="h-12 w-full sm:w-auto"
+          className="h-12 px-4"
         >
           All
         </Button>
@@ -111,7 +157,7 @@ const SurahManager = () => {
           variant={filter === 'memorized' ? 'default' : 'outline'}
           onClick={() => setFilter('memorized')}
           size="sm"
-          className="h-12 w-full sm:w-auto"
+          className="h-12 px-4"
         >
           Memorized
         </Button>
@@ -119,12 +165,12 @@ const SurahManager = () => {
           variant={filter === 'unmemorized' ? 'default' : 'outline'}
           onClick={() => setFilter('unmemorized')}
           size="sm"
-          className="h-12 w-full sm:w-auto"
+          className="h-12 px-4"
         >
           Unmemorized
         </Button>
       </div>
-      <div className="space-y-2 max-h-[60vh] overflow-y-auto w-full">
+      <div className="space-y-2 overflow-y-auto w-full">
         {filteredSurahs.map(surah => {
           const isMemorized = memorizedSurahNumbers.has(surah.number);
           const isUpdating =

@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
-import { List, Target, BookOpen, Settings } from 'lucide-react';
+import { List, Target, BookOpen, Settings, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Dashboard from '@/components/Dashboard';
 import SurahManager from '@/components/SurahManager';
 import GoalSetting from '@/components/GoalSetting';
 import RecommendedRevisions from '@/components/RecommendedRevisions';
 import SettingsComponent from '@/components/Settings';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { SURAHS } from '@/utils/surahData';
+
+const RATINGS = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+];
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showAddRevision, setShowAddRevision] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
+  const [selectedRating, setSelectedRating] = useState<string | undefined>(undefined);
 
   const tabs = [
     { id: 'recommendations', label: 'Today', icon: Target },
@@ -32,10 +45,19 @@ const Index = () => {
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Implement actual submission logic here
+    setShowAddRevision(false);
+    setSelectedDate(undefined);
+    setSelectedSurah(undefined);
+    setSelectedRating(undefined);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-white to-amber-50 w-full max-w-full">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-white to-amber-50 w-full max-w-full relative overflow-hidden">
       {/* Mobile Header */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-emerald-100 px-2 sm:px-4 py-2 sm:py-3 md:hidden w-full">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-emerald-100 px-2 sm:px-4 py-2 sm:py-3 md:hidden w-full">
         <div className="flex items-center justify-between w-full">
           <div>
             <h1 className="text-base sm:text-xl font-bold text-emerald-800 leading-tight">Quran Tracker</h1>
@@ -59,7 +81,7 @@ const Index = () => {
       </header>
 
       <main className="flex-1 flex flex-col w-full max-w-full overflow-y-auto">
-        <div className="w-full max-w-full px-2 sm:px-4 pb-24 md:pb-6 mx-auto">
+        <div className="w-full max-w-full px-2 sm:px-4 pb-safe mx-auto">
           {/* Desktop Navigation */}
           <nav className="hidden md:grid grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 bg-white rounded-lg shadow-sm p-1 md:p-2 w-full">
             {tabs.map((tab) => {
@@ -85,8 +107,84 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 md:hidden z-40 w-full">
+      {/* Floating Add Revision Button for Today Tab */}
+      {activeTab === 'recommendations' && (
+        <Dialog open={showAddRevision} onOpenChange={setShowAddRevision}>
+          <DialogTrigger asChild>
+            <button
+              className="fixed z-[100] bottom-24 right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              aria-label="Add past revision"
+              onClick={() => setShowAddRevision(true)}
+            >
+              <Plus className="w-6 h-6 mr-1" />
+              Add Revision
+            </button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add a Previous Revision</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Surah Selector */}
+              <div>
+                <label htmlFor="surah-select" className="block text-sm font-medium mb-1">Surah</label>
+                <select
+                  id="surah-select"
+                  className="w-full border rounded px-3 py-2"
+                  value={selectedSurah ?? ''}
+                  onChange={e => setSelectedSurah(Number(e.target.value) || undefined)}
+                  required
+                >
+                  <option value="" disabled>Select a surah</option>
+                  {SURAHS.map(surah => (
+                    <option key={surah.number} value={surah.number}>
+                      {surah.number}. {surah.transliteration} ({surah.name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* Date Picker */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Date</label>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  toDate={new Date()}
+                />
+              </div>
+              {/* Rating Selector */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Rating</label>
+                <div className="flex gap-2">
+                  {RATINGS.map(rating => (
+                    <Button
+                      key={rating.value}
+                      type="button"
+                      variant={selectedRating === rating.value ? 'default' : 'outline'}
+                      className="flex-1"
+                      onClick={() => setSelectedRating(rating.value)}
+                    >
+                      {rating.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full mt-2"
+                disabled={!selectedSurah || !selectedDate || !selectedRating}
+              >
+                Add Revision
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Bottom Navigation - Fixed Position */}
+      <nav className="bottom-navbar bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 w-full shadow-lg pb-safe">
         <div className="grid grid-cols-4 gap-1 w-full">
           {tabs.map((tab) => {
             const Icon = tab.icon;

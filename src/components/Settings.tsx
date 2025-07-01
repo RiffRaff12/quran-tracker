@@ -267,6 +267,36 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* How Spaced Repetition Works */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Bell className="h-5 w-5" />
+            How Spaced Repetition Works
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Understand how your revision schedule is optimized
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 text-sm">
+            <p>
+              Spaced repetition is a proven learning technique that helps you remember what you've memorized for the long term. Instead of reviewing everything every day, the app schedules each surah for revision at just the right time—right before you're likely to forget it.
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>When you review a surah, you rate how easy or hard it was to recall.</li>
+              <li>If it was easy, the app will wait longer before showing it again.</li>
+              <li>If it was hard, you'll see it again sooner.</li>
+              <li>This way, you spend more time on surahs you find difficult, and less on those you know well.</li>
+              <li>Adding a past revision helps the app adjust your schedule to match your real progress.</li>
+            </ul>
+            <p>
+              This method helps you keep all your surahs fresh in your memory, while saving time and effort!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
