@@ -1,9 +1,5 @@
 # Quran Revision Tracker (Offline-First)
 
-## Project info
-
-**URL**: https://lovable.dev/projects/d7a84027-05d5-447e-b02c-0ef4536b4066
-
 ## Offline-First Usage
 
 This app is now fully offline and does not require any login, registration, or internet connection. All your data is stored locally in your browser using IndexedDB.
@@ -24,12 +20,6 @@ You can back up your data or move it to another device:
 ## How can I edit this code?
 
 There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/d7a84027-05d5-447e-b02c-0ef4536b4066) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
