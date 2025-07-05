@@ -332,16 +332,23 @@ export const completeRevision = async (
 };
 
 /**
- * Updates user onboarding status
+ * Updates user onboarding status and saves memorized surahs
  */
-export const updateUserOnboarding = async (hasCompleted: boolean) => {
+export const updateUserOnboarding = async (memorizedSurahs: number[]) => {
   const profile = await getUserProfile();
   const updatedProfile = {
     ...profile,
-    hasCompletedOnboarding: hasCompleted,
+    hasCompletedOnboarding: true,
+    memorisedSurahs: memorizedSurahs,
     updatedAt: new Date().toISOString(),
   };
   await idbManager.setUserProfileOffline(updatedProfile);
+  
+  // Also add each surah to the surah revisions table
+  for (const surahNumber of memorizedSurahs) {
+    await addMemorizedSurah(surahNumber);
+  }
+  
   return updatedProfile;
 };
 

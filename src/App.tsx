@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Index from './pages/Index';
 import NotFound from './pages/NotFound';
+import OnboardingScreen from './pages/OnboardingScreen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from './components/ui/tooltip';
 import { Toaster } from './components/ui/toaster';
@@ -18,11 +19,11 @@ function App() {
       const granted = await pushNotifications.requestNotificationPermission();
       if (!granted) {
         // Optionally show UI to prompt user to enable notifications
-        console.log('User did not grant notification permissions');
+        // User did not grant notification permissions
       }
       // Listen for notification actions (optional: handle navigation, etc.)
       pushNotifications.listenForNotificationActions((action) => {
-        console.log('Notification action performed:', action);
+        // Notification action performed
       });
     })();
   }, []);
@@ -36,6 +37,7 @@ function App() {
           <div className="App">
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/onboarding" element={<OnboardingScreen />} />
               <Route path="/admin/pending-users" element={<AdminPendingUsers />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

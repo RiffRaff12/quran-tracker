@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.ayat.revisionflow',
-  appName: 'Ayat Revision Flow',
+  appName: 'Quran Revision Tracker',
   webDir: 'dist'
 };
 

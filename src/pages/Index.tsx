@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { List, Target, BookOpen, Settings, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Dashboard from '@/components/Dashboard';
@@ -9,6 +10,7 @@ import SettingsComponent from '@/components/Settings';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { SURAHS } from '@/utils/surahData';
+import { useOnboarding } from '@/hooks/use-onboarding';
 
 const RATINGS = [
   { value: 'easy', label: 'Easy' },
@@ -17,11 +19,32 @@ const RATINGS = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { hasCompletedOnboarding, isLoading } = useOnboarding();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddRevision, setShowAddRevision] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
   const [selectedRating, setSelectedRating] = useState<string | undefined>(undefined);
+
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (!isLoading && !hasCompletedOnboarding) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [hasCompletedOnboarding, isLoading, navigate]);
+
+  // Show loading while checking onboarding status
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-emerald-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: 'recommendations', label: 'Today', icon: Target },
@@ -81,7 +104,7 @@ const Index = () => {
       </header>
 
       <main className="flex-1 flex flex-col w-full max-w-full overflow-y-auto">
-        <div className="w-full max-w-full px-2 sm:px-4 pb-safe mx-auto">
+        <div className="w-full max-w-full px-2 sm:px-4 pb-20 pb-safe mx-auto">
           {/* Desktop Navigation */}
           <nav className="hidden md:grid grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 bg-white rounded-lg shadow-sm p-1 md:p-2 w-full">
             {tabs.map((tab) => {

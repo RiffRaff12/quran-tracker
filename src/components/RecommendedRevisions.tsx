@@ -133,7 +133,7 @@ const RecommendedRevisions = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Add Missed Revision Button and Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <div className="flex justify-end">

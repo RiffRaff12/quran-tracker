@@ -143,7 +143,7 @@ const SurahManager = () => {
   if (isLoading) return <div>Loading Surah data...</div>;
 
   return (
-    <div className="space-y-4 w-full max-w-full p-2 sm:p-4">
+    <div className="space-y-4 w-full max-w-full p-2 sm:p-4 pb-20">
       <div className="flex flex-row gap-2 w-full">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}

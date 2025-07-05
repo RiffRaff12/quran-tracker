@@ -2,9 +2,10 @@ import React, { useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Upload, Settings as SettingsIcon, Database, Bell, User } from 'lucide-react';
+import { Download, Upload, Settings as SettingsIcon, Database, Bell, User, MessageSquare } from 'lucide-react';
 import * as idbManager from '@/utils/idbManager';
 import { useToast } from '@/hooks/use-toast';
+import FeedbackForm from './FeedbackForm';
 
 const Settings = () => {
   const { toast } = useToast();
@@ -114,7 +115,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-full p-2 sm:p-4">
+    <div className="space-y-6 w-full max-w-full p-2 sm:p-4 pb-20">
       {/* Data Management */}
       <Card>
         <CardHeader>
@@ -236,35 +237,24 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Tips */}
+      {/* Feedback */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Bell className="h-5 w-5" />
-            Tips
+            <MessageSquare className="h-5 w-5" />
+            Feedback
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Get the most out of your revision practice
+            Help us improve by sharing your thoughts
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              • Export your data regularly to keep a backup of your progress
-            </p>
-            <p className="text-muted-foreground">
-              • Use the spaced repetition system to optimize your revision schedule
-            </p>
-            <p className="text-muted-foreground">
-              • Mark surahs as memorized only when you're confident in your retention
-            </p>
-            <p className="text-muted-foreground">
-              • Rate your revision difficulty honestly for better scheduling
-            </p>
-            <p className="text-muted-foreground">
-              • Check the dashboard regularly to track your progress
-            </p>
-          </div>
+          <FeedbackForm>
+            <Button className="h-12 w-full text-base">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Send Feedback
+            </Button>
+          </FeedbackForm>
         </CardContent>
       </Card>
 

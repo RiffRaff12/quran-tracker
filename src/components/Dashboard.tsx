@@ -118,7 +118,7 @@ const Dashboard = () => {
   const sortedDates = Object.keys(revisionsByDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 pb-20">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <Card>
@@ -155,31 +155,7 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Progress Bars */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Memorization Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Progress value={memorizedPercentage} className="w-full h-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {memorizedSurahs} of 114 surahs memorized
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Today's Revisions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Progress value={todaysProgress} className="w-full h-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {completedTodayCount} of {dueTodayCount} revisions completed
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+
 
       {/* Upcoming Revisions */}
       <Card>
