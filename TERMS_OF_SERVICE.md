@@ -86,7 +86,7 @@ These Terms are governed by the laws of [Your Jurisdiction]. Any disputes shall 
 ## Contact Information
 
 For questions about these Terms, please contact us at:
-- Email: [Your Contact Email]
+- Email: quranrevisiontracker@gmail.com
 - Website: [Your Website]
 
 ## Severability

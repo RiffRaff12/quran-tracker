@@ -28,7 +28,7 @@ const FeedbackForm = ({ children }: FeedbackFormProps) => {
 
     try {
       // Create mailto link with form data
-      const mailtoLink = `mailto:zhariff.hazali@gmail.com?subject=${encodeURIComponent(formData.subject || 'Quran Tracker Feedback')}&body=${encodeURIComponent(
+      const mailtoLink = `mailto:quranrevisiontracker@gmail.com?subject=${encodeURIComponent(formData.subject || 'Quran Tracker Feedback')}&body=${encodeURIComponent(
         `Name: ${formData.name}\nEmail: ${formData.email}\n\nFeedback:\n${formData.message}`
       )}`;
 
@@ -48,7 +48,7 @@ const FeedbackForm = ({ children }: FeedbackFormProps) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to open email client. Please try again or contact us directly at zhariff.hazali@gmail.com",
+        description: "Failed to open email client. Please try again or contact us directly at quranrevisiontracker@gmail.com",
       });
     } finally {
       setIsSubmitting(false);

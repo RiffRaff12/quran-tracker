@@ -51,7 +51,7 @@ We may update this Privacy Policy from time to time. We will notify users of any
 ## Contact Us
 
 If you have any questions about this Privacy Policy, please contact us at:
-- Email: [Your Contact Email]
+- Email: quranrevisiontracker@gmail.com
 - Website: [Your Website]
 
 ## Compliance
