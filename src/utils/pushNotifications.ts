@@ -15,8 +15,13 @@ export function listenForNotificationActions(onAction: (notification: ActionPerf
 
 // Schedule a local notification
 export async function scheduleLocalNotification(notification: ScheduledNotification) {
+  // Create a numeric ID from the surah number and timestamp
+  // Use a hash of the string ID to create a unique numeric ID
+  const timestamp = new Date(notification.fireDate).getTime();
+  const numericId = notification.surahNumber * 1000000 + (timestamp % 1000000);
+  
   const notif: LocalNotificationSchema = {
-    id: Number(notification.id),
+    id: numericId,
     title: notification.title,
     body: notification.body,
     schedule: { at: new Date(notification.fireDate) },

@@ -73,9 +73,9 @@ export async function getAllRevisionLogs(): Promise<RevisionData[]> {
   return (await db.getAll('revisionLogs'));
 }
 
-export async function addRevisionLog(log: RevisionData) {
+export async function addRevisionLog(log: RevisionData & { id: string }) {
   const db = await getDB();
-  await db.put('revisionLogs', log);
+  await db.put('revisionLogs', log, log.id);
 }
 
 // User Profile
@@ -109,7 +109,7 @@ export async function getAllScheduledNotifications() {
 
 export async function addScheduledNotification(notification: import('@/types/revision').ScheduledNotification) {
   const db = await getDB();
-  await db.put('scheduledNotifications', notification);
+  await db.put('scheduledNotifications', notification, notification.id);
 }
 
 export async function removeScheduledNotification(id: string) {

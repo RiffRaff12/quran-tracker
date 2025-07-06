@@ -3,8 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { CheckCircle, Circle, Search, BookOpen, Loader2 } from 'lucide-react';
+import { CheckCircle, Circle, BookOpen, Loader2 } from 'lucide-react';
 import { SURAHS } from '@/utils/surahData';
 import { updateUserOnboarding } from '@/utils/dataManager';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +16,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedSurahs, setSelectedSurahs] = useState<Set<number>>(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
 
   const mutation = useMutation({
@@ -42,12 +40,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       });
     }
   });
-
-  const filteredSurahs = SURAHS.filter(surah => 
-    surah.name.includes(searchTerm) || 
-    surah.transliteration.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    surah.number.toString().includes(searchTerm)
-  );
 
   const toggleSurah = (surahNumber: number) => {
     const newSelected = new Set(selectedSurahs);
@@ -90,32 +82,19 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     {
       title: "Select Your Memorized Surahs",
       content: (
-        <div className="space-y-4">
-          <div className="text-center mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-bold text-emerald-800 mb-1 sm:mb-2">
-              Which surahs have you memorized?
-            </h2>
+        <div className="flex flex-col h-full min-h-0">
+          <div className="text-center mb-4 sm:mb-6 flex-shrink-0">
             <p className="text-xs sm:text-sm text-gray-600">
               Select all the surahs you have memorized. You can always add more later.
             </p>
           </div>
 
-          <div className="relative mb-2 sm:mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search surahs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 text-base"
-            />
-          </div>
-
-          <div className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-4">
+          <div className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-4 flex-shrink-0">
             Selected: {selectedSurahs.size} surahs
           </div>
 
-          <div className="max-h-56 sm:max-h-64 overflow-y-auto space-y-2 scrollbar-thin">
-            {filteredSurahs.map((surah) => {
+          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin min-h-0">
+            {SURAHS.map((surah) => {
               const isSelected = selectedSurahs.has(surah.number);
               return (
                 <div
@@ -160,7 +139,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             })}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4 w-full">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full flex-shrink-0 bg-white border-t pt-4 mt-4">
             <Button 
               variant="outline" 
               onClick={() => setCurrentStep(0)}
@@ -184,27 +163,54 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <Card className="w-full max-w-full sm:max-w-md p-2 sm:p-4 overflow-y-auto">
-        <CardHeader className="text-center pb-2 sm:pb-4">
-          <div className="flex justify-center mb-2">
-            <div className="flex space-x-2">
-              {steps.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-2 h-2 rounded-full ${
-                    index <= currentStep ? 'bg-emerald-600' : 'bg-gray-200'
-                  }`}
-                />
-              ))}
+    <div className={`${currentStep === 1 ? 'h-screen' : 'min-h-screen'} bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto`}>
+      {currentStep === 1 ? (
+        // Full height layout for surah selection
+        <div className="w-full h-full flex flex-col bg-white rounded-lg shadow-lg">
+          <div className="text-center p-4 flex-shrink-0">
+            <div className="flex justify-center mb-2">
+              <div className="flex space-x-2">
+                {steps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-2 h-2 rounded-full ${
+                      index <= currentStep ? 'bg-emerald-600' : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
+            <h2 className="text-lg sm:text-xl font-bold text-emerald-800 mb-1 sm:mb-2">
+              {steps[currentStep].title}
+            </h2>
           </div>
-          <CardTitle className="text-base sm:text-lg">{steps[currentStep].title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {steps[currentStep].content}
-        </CardContent>
-      </Card>
+          <div className="flex-1 flex flex-col p-4 pt-0 min-h-0">
+            {steps[currentStep].content}
+          </div>
+        </div>
+      ) : (
+        // Normal card layout for welcome step
+        <Card className="w-full max-w-full sm:max-w-md p-2 sm:p-4 overflow-y-auto">
+          <CardHeader className="text-center pb-2 sm:pb-4">
+            <div className="flex justify-center mb-2">
+              <div className="flex space-x-2">
+                {steps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-2 h-2 rounded-full ${
+                      index <= currentStep ? 'bg-emerald-600' : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <CardTitle className="text-base sm:text-lg">{steps[currentStep].title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {steps[currentStep].content}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

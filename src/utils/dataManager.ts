@@ -148,7 +148,7 @@ export const getUserProfile = async (): Promise<Profile> => {
     // Return a default profile if not found
     return {
       id: 'local-profile',
-      hasCompletedOnboarding: true,
+      hasCompletedOnboarding: false,
       memorisedSurahs: [],
       goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 },
       createdAt: new Date().toISOString(),
