@@ -1,4 +1,4 @@
-package com.ayat.revisionflow;
+package com.zhariff.quranrevisiontracker;
 
 import com.getcapacitor.BridgeActivity;
 
