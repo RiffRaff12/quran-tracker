@@ -28,7 +28,7 @@ const FeedbackForm = ({ children }: FeedbackFormProps) => {
 
     try {
       // Create mailto link with form data
-      const mailtoLink = `mailto:quranrevisiontracker@gmail.com?subject=${encodeURIComponent(formData.subject || 'Quran Tracker Feedback')}&body=${encodeURIComponent(
+      const mailtoLink = `mailto:quranrevisiontracker@gmail.com?subject=${encodeURIComponent(formData.subject || 'Quran Revision Tracker Feedback')}&body=${encodeURIComponent(
         `Name: ${formData.name}\nEmail: ${formData.email}\n\nFeedback:\n${formData.message}`
       )}`;
 

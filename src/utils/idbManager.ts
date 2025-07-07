@@ -54,17 +54,23 @@ export async function getDB() {
 
 // Surah Revisions
 export async function getAllSurahRevisions(): Promise<SurahData[]> {
+  console.log('Getting all surah revisions from IndexedDB...');
   const db = await getDB();
-  return (await db.getAll('surahRevisions'));
+  const revisions = await db.getAll('surahRevisions');
+  console.log('Retrieved surah revisions from IndexedDB:', revisions);
+  return revisions;
 }
 
 export async function setSurahRevisions(revisions: SurahData[]) {
+  console.log('Setting surah revisions:', revisions);
   const db = await getDB();
   const tx = db.transaction('surahRevisions', 'readwrite');
   for (const rev of revisions) {
+    console.log(`Saving surah ${rev.surahNumber}:`, rev);
     await tx.store.put(rev);
   }
   await tx.done;
+  console.log('Surah revisions saved successfully');
 }
 
 // Revision Logs

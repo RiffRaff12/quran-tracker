@@ -24,6 +24,10 @@ android {
             signingConfig signingConfigs.debug // Change to release signing config for production
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 }
 
 repositories {

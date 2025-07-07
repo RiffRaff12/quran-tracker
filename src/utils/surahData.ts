@@ -131,3 +131,42 @@ export const SURAHS: Surah[] = [
   { number: 113, name: "الفلق", transliteration: "Al-Falaq", verses: 5 },
   { number: 114, name: "الناس", transliteration: "An-Naas", verses: 6 },
 ];
+
+export interface Juz {
+  number: number;
+  startSurah: number;
+  endSurah: number;
+}
+
+export const JUZS: Juz[] = [
+  { number: 1, startSurah: 1, endSurah: 2 },
+  { number: 2, startSurah: 2, endSurah: 2 },
+  { number: 3, startSurah: 2, endSurah: 3 },
+  { number: 4, startSurah: 3, endSurah: 4 },
+  { number: 5, startSurah: 4, endSurah: 4 },
+  { number: 6, startSurah: 4, endSurah: 5 },
+  { number: 7, startSurah: 5, endSurah: 6 },
+  { number: 8, startSurah: 6, endSurah: 7 },
+  { number: 9, startSurah: 7, endSurah: 8 },
+  { number: 10, startSurah: 8, endSurah: 9 },
+  { number: 11, startSurah: 9, endSurah: 11 },
+  { number: 12, startSurah: 11, endSurah: 12 },
+  { number: 13, startSurah: 12, endSurah: 14 },
+  { number: 14, startSurah: 15, endSurah: 16 },
+  { number: 15, startSurah: 17, endSurah: 18 },
+  { number: 16, startSurah: 18, endSurah: 20 },
+  { number: 17, startSurah: 20, endSurah: 22 },
+  { number: 18, startSurah: 23, endSurah: 25 },
+  { number: 19, startSurah: 25, endSurah: 27 },
+  { number: 20, startSurah: 27, endSurah: 29 },
+  { number: 21, startSurah: 29, endSurah: 33 },
+  { number: 22, startSurah: 33, endSurah: 36 },
+  { number: 23, startSurah: 36, endSurah: 39 },
+  { number: 24, startSurah: 39, endSurah: 41 },
+  { number: 25, startSurah: 41, endSurah: 45 },
+  { number: 26, startSurah: 46, endSurah: 51 },
+  { number: 27, startSurah: 51, endSurah: 57 },
+  { number: 28, startSurah: 58, endSurah: 66 },
+  { number: 29, startSurah: 67, endSurah: 77 },
+  { number: 30, startSurah: 78, endSurah: 114 },
+];

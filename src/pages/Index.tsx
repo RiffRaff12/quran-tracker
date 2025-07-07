@@ -21,7 +21,7 @@ const RATINGS = [
 const Index = () => {
   const navigate = useNavigate();
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('recommendations');
   const [showAddRevision, setShowAddRevision] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
@@ -29,7 +29,9 @@ const Index = () => {
 
   // Redirect to onboarding if not completed
   useEffect(() => {
+    console.log('Index useEffect - hasCompletedOnboarding:', hasCompletedOnboarding, 'isLoading:', isLoading);
     if (!isLoading && !hasCompletedOnboarding) {
+      console.log('Redirecting to onboarding...');
       navigate('/onboarding', { replace: true });
     }
   }, [hasCompletedOnboarding, isLoading, navigate]);
@@ -80,10 +82,13 @@ const Index = () => {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-white to-amber-50 w-full max-w-full relative overflow-hidden">
       {/* Mobile Header */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-emerald-100 px-2 sm:px-4 py-2 sm:py-3 md:hidden w-full">
+      <header
+        className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-emerald-100 px-2 sm:px-4 py-2 sm:py-3 md:hidden w-full"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 32px), 32px)' }}
+      >
         <div className="flex items-center justify-between w-full">
           <div>
-            <h1 className="text-base sm:text-xl font-bold text-emerald-800 leading-tight">Quran Tracker</h1>
+            <h1 className="text-base sm:text-xl font-bold text-emerald-800 leading-tight">Quran Revision Tracker</h1>
             <p className="text-xs sm:text-sm text-emerald-600">
               {tabs.find(tab => tab.id === activeTab)?.label}
             </p>
@@ -92,7 +97,10 @@ const Index = () => {
       </header>
 
       {/* Desktop Header */}
-      <header className="hidden md:flex items-center justify-between text-center py-6 md:py-8 w-full px-8">
+      <header
+        className="hidden md:flex items-center justify-between text-center py-6 md:py-8 w-full px-8"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 32px), 32px)' }}
+      >
         <div>
           <h1 className="text-2xl md:text-4xl font-bold text-emerald-800 mb-1 md:mb-2">
             Quran Revision Tracker
@@ -103,7 +111,10 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col w-full max-w-full overflow-y-auto">
+      <main
+        className="flex-1 flex flex-col w-full max-w-full overflow-y-auto"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)' }}
+      >
         <div className="w-full max-w-full px-2 sm:px-4 pb-20 pb-safe mx-auto">
           {/* Desktop Navigation */}
           <nav className="hidden md:grid grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 bg-white rounded-lg shadow-sm p-1 md:p-2 w-full">
@@ -207,30 +218,33 @@ const Index = () => {
       )}
 
       {/* Bottom Navigation - Fixed Position */}
-      <nav className="bottom-navbar bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 w-full shadow-lg pb-safe">
-        <div className="grid grid-cols-4 gap-1 w-full">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <Button
-                key={tab.id}
-                variant="ghost"
-                className={`flex flex-col items-center justify-center gap-0.5 h-12 w-full min-w-[44px] text-xs font-medium px-0 py-0 rounded-none border-0 focus:ring-0 focus:outline-none ${
-                  isActive
-                    ? 'text-emerald-600 bg-emerald-50' 
-                    : 'text-gray-600'
-                }`}
-                onClick={() => setActiveTab(tab.id)}
-                tabIndex={0}
-                aria-label={tab.label}
-              >
-                <Icon className={`h-5 w-5 ${isActive ? 'text-emerald-600' : 'text-gray-500'}`} />
-                <span className="text-[11px] sm:text-xs leading-tight">{tab.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+      <nav
+        className="bottom-navbar bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 w-full shadow-lg pb-safe"
+        style={{
+          paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '8px',
+        }}
+      >
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              variant="ghost"
+              className={`flex flex-col items-center justify-center gap-0.5 h-14 w-full min-w-[44px] text-xs font-medium px-0 py-0 rounded-none border-0 focus:ring-0 focus:outline-none ${
+                isActive ? 'text-emerald-700' : 'text-gray-500'
+              }`}
+              style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <Icon className="h-6 w-6 mb-1" />
+              {tab.label}
+            </Button>
+          );
+        })}
       </nav>
     </div>
   );

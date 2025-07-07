@@ -134,66 +134,6 @@ const RecommendedRevisions = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Add Missed Revision Button and Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <div className="flex justify-end">
-          <DialogTrigger asChild>
-            <Button variant="outline" className="mb-2"><Plus className="w-4 h-4 mr-2" />Add Missed Revision</Button>
-          </DialogTrigger>
-        </div>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Missed Revision</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="surah">Surah</Label>
-              <Select value={selectedSurah ? String(selectedSurah) : undefined} onValueChange={v => setSelectedSurah(Number(v))}>
-                <SelectTrigger id="surah">
-                  <SelectValue placeholder="Select surah" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SURAHS.map(surah => (
-                    <SelectItem key={surah.number} value={String(surah.number)}>
-                      {surah.transliteration} ({surah.name})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="date">Date</Label>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                toDate={new Date()}
-                fromYear={2000}
-                id="date"
-              />
-            </div>
-            <div>
-              <Label htmlFor="difficulty">Difficulty</Label>
-              <Select value={selectedDifficulty} onValueChange={v => setSelectedDifficulty(v as any)}>
-                <SelectTrigger id="difficulty">
-                  <SelectValue placeholder="Select difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAddMissedRevision} disabled={submitting || !selectedSurah || !selectedDate || !selectedDifficulty}>
-              {submitting ? 'Adding...' : 'Add Revision'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Today's Revisions */}
       {dueRevisions.length > 0 && (
         <div className="mt-8">

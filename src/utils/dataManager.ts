@@ -13,9 +13,13 @@ import * as pushNotifications from './pushNotifications';
 // --- Offline-Only Data Fetching Functions ---
 
 export const getSurahRevisions = async (): Promise<SurahData[]> => {
+  console.log('Getting all surah revisions...');
   // Only use local storage
   const local = await idbManager.getAllSurahRevisions();
-  return local || [];
+  console.log('Retrieved surah revisions:', local);
+  const result = local || [];
+  console.log('Returning surah revisions:', result);
+  return result;
 };
 
 /**
@@ -53,21 +57,32 @@ export const getStreak = async (): Promise<number> => {
  * Gets today's recommended revisions based on spaced repetition algorithm
  */
 export const getTodaysRevisions = async (): Promise<TodaysRevision[]> => {
+  console.log('Getting today\'s revisions...');
   const surahRevisions = await getSurahRevisions();
+  console.log('All surah revisions:', surahRevisions);
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  console.log('Today (start of day):', today.toISOString());
   
-  return surahRevisions
-    .filter(surah => 
-      surah.memorized && 
-      surah.nextRevision && 
-      new Date(surah.nextRevision) <= today
-    )
+  const todaysRevisions = surahRevisions
+    .filter(surah => {
+      const isMemorized = surah.memorized;
+      const hasNextRevision = surah.nextRevision;
+      const isDueToday = hasNextRevision && new Date(surah.nextRevision) <= today;
+      
+      console.log(`Surah ${surah.surahNumber}: memorized=${isMemorized}, nextRevision=${surah.nextRevision}, dueToday=${isDueToday}`);
+      
+      return isMemorized && hasNextRevision && isDueToday;
+    })
     .map(surah => ({
       surahNumber: surah.surahNumber!,
       nextRevision: surah.nextRevision!,
       completed: false
     }));
+  
+  console.log('Today\'s revisions found:', todaysRevisions);
+  return todaysRevisions;
 };
 
 /**
@@ -127,15 +142,26 @@ export const getAllRevisionLogs = async () => {
 // --- Data Mutation Functions (Offline-Only) ---
 
 const updateSurahRevision = async (surahNumber: number, updates: Partial<SurahData>) => {
+  console.log(`Updating surah revision ${surahNumber} with:`, updates);
+  
   // Update local only
   const all = await idbManager.getAllSurahRevisions();
+  console.log(`Current surah revisions (${all.length} total):`, all);
+  
   const idx = all.findIndex(s => s.surahNumber === surahNumber);
+  console.log(`Found existing surah at index: ${idx}`);
+  
   if (idx !== -1) {
+    console.log(`Updating existing surah ${surahNumber}`);
     all[idx] = { ...all[idx], ...updates };
   } else {
+    console.log(`Adding new surah ${surahNumber}`);
     all.push({ surahNumber, ...updates } as SurahData);
   }
+  
+  console.log(`Saving ${all.length} surah revisions...`);
   await idbManager.setSurahRevisions(all);
+  console.log(`Surah revision ${surahNumber} updated successfully`);
 };
 
 /**
@@ -172,13 +198,14 @@ const addRevisionHistory = async (surahNumber: number, difficulty: 'easy' | 'med
  * Marks a surah as memorized and sets its initial revision state.
  */
 export const addMemorizedSurah = async (surahNumber: number) => {
+  // Set nextRevision to the start of today (midnight)
   const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to midnight
   const nextRevision = new Date(today);
-  nextRevision.setDate(today.getDate() + 1); // First revision: 1 day
 
   const updates: Partial<SurahData> = {
     memorized: true,
-    lastRevision: today.toISOString(),
+    lastRevision: undefined, // No previous revision for newly memorized surahs
     nextRevision: nextRevision.toISOString(),
     interval: 1, // 1 day interval
     easeFactor: 2.5,

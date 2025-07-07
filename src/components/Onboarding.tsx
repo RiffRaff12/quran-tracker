@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Circle, BookOpen, Loader2 } from 'lucide-react';
-import { SURAHS } from '@/utils/surahData';
+import { SURAHS, JUZS } from '@/utils/surahData';
 import { updateUserOnboarding } from '@/utils/dataManager';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,15 +17,30 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const { toast } = useToast();
   const [selectedSurahs, setSelectedSurahs] = useState<Set<number>>(new Set());
   const [currentStep, setCurrentStep] = useState(0);
+  const [selectionMode, setSelectionMode] = useState<'surah' | 'juz'>('surah');
+  const [selectedJuz, setSelectedJuz] = useState<Set<number>>(new Set());
 
   const mutation = useMutation({
     mutationFn: async (surahs: number[]) => {
       // Update user onboarding status and save memorized surahs
       await updateUserOnboarding(surahs);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      console.log('Onboarding mutation success - starting cache invalidation...');
       // Invalidate and refetch user profile
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      // Also invalidate today's revisions to show the newly added surahs
+      await queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+      await queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      console.log('Cache invalidated, refetching...');
+      // Explicitly refetch the data to ensure it's updated
+      await queryClient.refetchQueries({ queryKey: ['userProfile'] });
+      await queryClient.refetchQueries({ queryKey: ['todaysRevisions'] });
+      await queryClient.refetchQueries({ queryKey: ['surahRevisions'] });
+      console.log('Data refetched, waiting for cache update...');
+      // Add a small delay to ensure the cache is properly updated
+      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('Cache update complete, showing toast and calling onComplete...');
       toast({
         title: "Setup Complete!",
         description: "Your memorized surahs have been saved.",
@@ -51,13 +66,33 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     setSelectedSurahs(newSelected);
   };
 
+  const handleJuzToggle = (juzNumber: number) => {
+    const newSelectedJuz = new Set(selectedJuz);
+    const juz = JUZS.find(j => j.number === juzNumber);
+    if (!juz) return;
+    // Get all surah numbers in this Juz
+    const surahNumbers = SURAHS.filter(s => s.number >= juz.startSurah && s.number <= juz.endSurah).map(s => s.number);
+    const newSelectedSurahs = new Set(selectedSurahs);
+    if (newSelectedJuz.has(juzNumber)) {
+      // Deselect Juz: remove all its surahs
+      newSelectedJuz.delete(juzNumber);
+      surahNumbers.forEach(n => newSelectedSurahs.delete(n));
+    } else {
+      // Select Juz: add all its surahs
+      newSelectedJuz.add(juzNumber);
+      surahNumbers.forEach(n => newSelectedSurahs.add(n));
+    }
+    setSelectedJuz(newSelectedJuz);
+    setSelectedSurahs(newSelectedSurahs);
+  };
+
   const handleComplete = () => {
     mutation.mutate(Array.from(selectedSurahs));
   };
 
   const steps = [
     {
-      title: "Welcome to Quran Tracker",
+      title: "Welcome to Quran Revision Tracker",
       content: (
         <div className="text-center space-y-4">
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
@@ -88,57 +123,122 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               Select all the surahs you have memorized. You can always add more later.
             </p>
           </div>
-
+          {/* Surah/Juz Toggle */}
+          <div className="flex justify-center mb-4 gap-2">
+            <Button
+              variant={selectionMode === 'surah' ? 'default' : 'outline'}
+              onClick={() => setSelectionMode('surah')}
+              className="px-4 py-2 text-sm"
+            >
+              Surah
+            </Button>
+            <Button
+              variant={selectionMode === 'juz' ? 'default' : 'outline'}
+              onClick={() => setSelectionMode('juz')}
+              className="px-4 py-2 text-sm"
+            >
+              Juz
+            </Button>
+          </div>
           <div className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-4 flex-shrink-0">
             Selected: {selectedSurahs.size} surahs
           </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin min-h-0">
-            {SURAHS.map((surah) => {
-              const isSelected = selectedSurahs.has(surah.number);
-              return (
-                <div
-                  key={surah.number}
-                  onClick={() => toggleSurah(surah.number)}
-                  className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-all touch-manipulation w-full ${
-                    isSelected 
-                      ? 'bg-emerald-50 border-emerald-200 shadow-sm' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div
-                          className={`text-xs sm:text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
-                            isSelected
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {surah.number}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-base truncate">
-                            {surah.name}
-                          </h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            {surah.transliteration}
-                          </p>
+          {/* Surah or Juz selection */}
+          {selectionMode === 'surah' ? (
+            <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin min-h-0">
+              {SURAHS.map((surah) => {
+                const isSelected = selectedSurahs.has(surah.number);
+                return (
+                  <div
+                    key={surah.number}
+                    onClick={() => toggleSurah(surah.number)}
+                    className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-all touch-manipulation w-full ${
+                      isSelected 
+                        ? 'bg-emerald-50 border-emerald-200 shadow-sm' 
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div
+                            className={`text-xs sm:text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {surah.number}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-base truncate">
+                              {surah.transliteration} ({surah.name})
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              {surah.verses} verses
+                            </p>
+                          </div>
                         </div>
                       </div>
+                      {isSelected ? (
+                        <CheckCircle className="w-5 h-5 text-emerald-600 ml-2 flex-shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-muted-foreground ml-2 flex-shrink-0" />
+                      )}
                     </div>
-                    {isSelected ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-600 ml-2 flex-shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground ml-2 flex-shrink-0" />
-                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin min-h-0">
+              {JUZS.map((juz) => {
+                const isSelected = selectedJuz.has(juz.number);
+                const surahRange = SURAHS.find(s => s.number === juz.startSurah)?.transliteration +
+                  (juz.startSurah !== juz.endSurah ? ` - ${SURAHS.find(s => s.number === juz.endSurah)?.transliteration}` : '');
+                return (
+                  <div
+                    key={juz.number}
+                    onClick={() => handleJuzToggle(juz.number)}
+                    className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-all touch-manipulation w-full ${
+                      isSelected 
+                        ? 'bg-emerald-50 border-emerald-200 shadow-sm' 
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div
+                            className={`text-xs sm:text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {juz.number}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-base truncate">
+                              Juz {juz.number} ({surahRange})
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              Surahs {juz.startSurah} - {juz.endSurah}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected ? (
+                        <CheckCircle className="w-5 h-5 text-emerald-600 ml-2 flex-shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-muted-foreground ml-2 flex-shrink-0" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full flex-shrink-0 bg-white border-t pt-4 mt-4">
             <Button 
               variant="outline" 
