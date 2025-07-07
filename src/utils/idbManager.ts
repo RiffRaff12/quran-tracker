@@ -66,6 +66,10 @@ export async function setSurahRevisions(revisions: SurahData[]) {
   const db = await getDB();
   const tx = db.transaction('surahRevisions', 'readwrite');
   for (const rev of revisions) {
+    if (typeof rev.surahNumber !== 'number') {
+      console.error('SurahData missing surahNumber:', rev);
+      continue;
+    }
     console.log(`Saving surah ${rev.surahNumber}:`, rev);
     await tx.store.put(rev);
   }
@@ -81,7 +85,7 @@ export async function getAllRevisionLogs(): Promise<RevisionData[]> {
 
 export async function addRevisionLog(log: RevisionData & { id: string }) {
   const db = await getDB();
-  await db.put('revisionLogs', log, log.id);
+  await db.put('revisionLogs', log);
 }
 
 // User Profile

@@ -65,13 +65,15 @@ const RevisionCard = ({ revision, onComplete, isCompleted, learningStep = 0 }: R
             <div className="min-w-0">
               <h3 className="font-semibold text-base truncate">{`${surah.transliteration} (${surah.name})`}</h3>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-xs text-muted-foreground">{`${surah.verses} verses`}</p>
-                {learningStep > 0 && (
-                  <Badge variant="outline" className={`text-xs ${learningStatus.color}`}>
-                    <BookOpen className="h-3 w-3 mr-1" />
-                    {learningStatus.status}
-                  </Badge>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {`${surah.verses} verses • ${surah.pages} pages • Juz ${surah.juz}`}
+                  {learningStep > 0 && (
+                    <span className="mx-1">•</span>
+                  )}
+                  {learningStep > 0 && (
+                    <span className="text-xs text-muted-foreground">{learningStatus.status}</span>
+                  )}
+                </p>
               </div>
             </div>
           </div>

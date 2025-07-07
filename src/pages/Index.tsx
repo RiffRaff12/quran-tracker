@@ -146,9 +146,10 @@ const Index = () => {
         <Dialog open={showAddRevision} onOpenChange={setShowAddRevision}>
           <DialogTrigger asChild>
             <button
-              className="fixed z-[100] bottom-24 right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
               aria-label="Add past revision"
               onClick={() => setShowAddRevision(true)}
+              style={{ bottom: 'calc(max(env(safe-area-inset-bottom, 34px), 34px) + 72px)', position: 'fixed' }}
             >
               <Plus className="w-6 h-6 mr-1" />
               Add Revision
@@ -219,7 +220,7 @@ const Index = () => {
 
       {/* Bottom Navigation - Fixed Position */}
       <nav
-        className="bottom-navbar bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 w-full shadow-lg pb-safe"
+        className="bottom-navbar fixed bottom-0 left-0 w-full z-40 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 shadow-lg pb-safe"
         style={{
           paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)',
           display: 'grid',

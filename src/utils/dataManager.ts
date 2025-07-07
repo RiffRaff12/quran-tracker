@@ -511,17 +511,14 @@ export const addBackdatedRevision = async (
 export const getLearningPhaseStatus = (learningStep: number): { status: string; description: string; color: string } => {
   if (learningStep === 0) {
     return { status: 'New', description: 'Not yet started', color: 'text-gray-500' };
-  } else if (learningStep < 4) {
-    const stepNames = ['', 'Early Repetition 1', 'Early Repetition 2', 'Early Repetition 3'];
-    const descriptions = ['', '1 day interval', '2 day interval', '3 day interval'];
-    const colors = ['', 'text-blue-600', 'text-blue-600', 'text-blue-600'];
-    return { 
-      status: stepNames[learningStep], 
-      description: descriptions[learningStep], 
-      color: colors[learningStep] 
-    };
+  } else if (learningStep === 1) {
+    return { status: 'Just Memorised', description: 'Early Repetition 1', color: 'text-gray-500' };
+  } else if (learningStep === 2) {
+    return { status: 'Quick Review', description: 'Early Repetition 2', color: 'text-gray-500' };
+  } else if (learningStep === 3) {
+    return { status: 'Settling In', description: 'Early Repetition 3', color: 'text-gray-500' };
   } else {
-    return { status: 'Graduated', description: 'In main schedule', color: 'text-green-600' };
+    return { status: 'Regular Practice', description: 'Graduated', color: 'text-gray-500' };
   }
 };
 
