@@ -149,13 +149,17 @@ const Index = () => {
               className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
               aria-label="Add past revision"
               onClick={() => setShowAddRevision(true)}
-              style={{ bottom: 'calc(max(env(safe-area-inset-bottom, 34px), 34px) + 72px)', position: 'fixed' }}
+              style={{ 
+                // Match the Add New Memorisation FAB position
+                bottom: 'calc(max(env(safe-area-inset-bottom, 34px), 34px) + 72px)', 
+                position: 'fixed' 
+              }}
             >
               <Plus className="w-6 h-6 mr-1" />
               Add Revision
             </button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] w-full rounded-2xl">
             <DialogHeader>
               <DialogTitle>Add a Previous Revision</DialogTitle>
             </DialogHeader>
@@ -179,7 +183,7 @@ const Index = () => {
                 </select>
               </div>
               {/* Date Picker */}
-              <div>
+              <div className="flex flex-col items-center">
                 <label className="block text-sm font-medium mb-1">Date</label>
                 <Calendar
                   mode="single"
@@ -220,9 +224,10 @@ const Index = () => {
 
       {/* Bottom Navigation - Fixed Position */}
       <nav
-        className="bottom-navbar fixed bottom-0 left-0 w-full z-40 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 shadow-lg pb-safe"
+        className="bottom-navbar fixed left-0 w-full z-40 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 shadow-lg pb-safe"
         style={{
-          paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)',
+          bottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingBottom: '16px', // extra space above system nav
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: '8px',
@@ -238,7 +243,6 @@ const Index = () => {
               className={`flex flex-col items-center justify-center gap-0.5 h-14 w-full min-w-[44px] text-xs font-medium px-0 py-0 rounded-none border-0 focus:ring-0 focus:outline-none ${
                 isActive ? 'text-emerald-700' : 'text-gray-500'
               }`}
-              style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
               onClick={() => setActiveTab(tab.id)}
             >
               <Icon className="h-6 w-6 mb-1" />

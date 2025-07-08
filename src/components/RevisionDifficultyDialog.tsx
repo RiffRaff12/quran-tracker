@@ -36,7 +36,7 @@ const RevisionDifficultyDialog = ({ open, onOpenChange, surah, onComplete }) => 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-sm mx-4">
+      <DialogContent className="max-w-[95vw] w-full rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-lg">How was your revision?</DialogTitle>
           <DialogDescription className="text-sm">

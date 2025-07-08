@@ -216,7 +216,7 @@ const SurahManager = () => {
                 </DialogTrigger>
               </div>
               {selectedSurah && selectedSurah.number === surah.number && (
-                 <DialogContent>
+                 <DialogContent className="max-w-[95vw] w-full rounded-2xl">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
                         <History className="w-5 h-5" />
@@ -243,7 +243,7 @@ const SurahManager = () => {
             Add New Memorisation
           </button>
         </DialogTrigger>
-        <DialogContent className="max-w-lg w-full">
+        <DialogContent className="max-w-[95vw] w-full rounded-2xl">
           <DialogHeader>
             <DialogTitle>Select Memorized Surahs</DialogTitle>
           </DialogHeader>

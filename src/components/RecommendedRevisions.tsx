@@ -112,6 +112,36 @@ const RecommendedRevisions = () => {
     r => completedInSession.includes(r.surahNumber)
   );
 
+  // Split dueRevisions into overdue and due today
+  const overdueRevisions = dueRevisions.filter(revision => {
+    const dueDate = new Date(revision.nextRevision);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  });
+  const dueTodayRevisions = dueRevisions.filter(revision => {
+    const dueDate = new Date(revision.nextRevision);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dueDate.getTime() === today.getTime();
+  });
+
+  // Group overdue revisions by days overdue
+  const groupOverdueRevisions = () => {
+    const groups: Record<number, TodaysRevision[]> = {};
+    overdueRevisions.forEach(revision => {
+      const dueDate = new Date(revision.nextRevision);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const daysOverdue = Math.abs(Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+      if (!groups[daysOverdue]) groups[daysOverdue] = [];
+      groups[daysOverdue].push(revision);
+    });
+    // Sort by most overdue first
+    return Object.entries(groups).sort((a, b) => Number(b[0]) - Number(a[0]));
+  };
+  const overdueGroups: [string, TodaysRevision[]][] = groupOverdueRevisions();
+
   if (isLoadingToday || isLoadingSurahRevisions) {
     return <div>Loading revisions...</div>; // Or a nice skeleton loader
   }
@@ -137,18 +167,38 @@ const RecommendedRevisions = () => {
       {/* Today's Revisions */}
       {dueRevisions.length > 0 && (
         <div className="mt-8">
-          <div className="text-sm font-medium text-muted-foreground px-1 mb-2">Today</div>
-          <div className="space-y-3">
-            {dueRevisions.map((revision) => (
-              <RevisionCard
-                key={revision.surahNumber}
-                revision={revision}
-                onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
-                isCompleted={false}
-                learningStep={getLearningStep(revision.surahNumber)}
-              />
-            ))}
-          </div>
+          {overdueGroups.length > 0 && overdueGroups.map(([days, revisions]) => (
+            <div key={days} className="mb-6">
+              <div className="text-sm font-medium text-red-500 px-1 mb-2">{days} day{Number(days) > 1 ? 's' : ''} overdue</div>
+              <div className="space-y-3">
+                {revisions.map((revision) => (
+                  <RevisionCard
+                    key={revision.surahNumber}
+                    revision={revision}
+                    onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
+                    isCompleted={false}
+                    learningStep={getLearningStep(revision.surahNumber)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {dueTodayRevisions.length > 0 && (
+            <>
+              <div className="text-sm font-medium text-muted-foreground px-1 mb-2">Today</div>
+              <div className="space-y-3">
+                {dueTodayRevisions.map((revision) => (
+                  <RevisionCard
+                    key={revision.surahNumber}
+                    revision={revision}
+                    onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
+                    isCompleted={false}
+                    learningStep={getLearningStep(revision.surahNumber)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
