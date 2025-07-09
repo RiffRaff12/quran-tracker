@@ -6,6 +6,8 @@ import { Download, Upload, Settings as SettingsIcon, Database, Bell, User, Messa
 import * as idbManager from '@/utils/idbManager';
 import { useToast } from '@/hooks/use-toast';
 import FeedbackForm from './FeedbackForm';
+import { Bell as BellIcon } from 'lucide-react';
+import * as pushNotifications from '@/utils/pushNotifications';
 
 const Settings = () => {
   const { toast } = useToast();
@@ -193,6 +195,35 @@ const Settings = () => {
               <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">Yes</Badge>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Features */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Bell className="h-5 w-5" />
+            Notifications
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Enable or disable local notifications for revision reminders.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={async () => {
+              const granted = await pushNotifications.requestNotificationPermission();
+              if (granted) {
+                toast({ title: "Notifications enabled", description: "You will receive reminders." });
+              } else {
+                toast({ title: "Notifications disabled", description: "You won't receive reminders." });
+              }
+            }}
+            className="h-12 w-full text-base"
+            variant="outline"
+          >
+            Enable Notifications
+          </Button>
         </CardContent>
       </Card>
 

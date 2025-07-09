@@ -166,7 +166,7 @@ const RecommendedRevisions = () => {
     <div className="space-y-6 pb-20">
       {/* Today's Revisions */}
       {dueRevisions.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-1">
           {overdueGroups.length > 0 && overdueGroups.map(([days, revisions]) => (
             <div key={days} className="mb-6">
               <div className="text-sm font-medium text-red-500 px-1 mb-2">{days} day{Number(days) > 1 ? 's' : ''} overdue</div>

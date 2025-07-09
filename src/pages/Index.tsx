@@ -224,10 +224,11 @@ const Index = () => {
 
       {/* Bottom Navigation - Fixed Position */}
       <nav
-        className="bottom-navbar fixed left-0 w-full z-40 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 shadow-lg pb-safe"
+        className="bottom-navbar fixed left-0 w-full z-40 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 shadow-lg"
         style={{
-          bottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingBottom: '16px', // extra space above system nav
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)', // move even higher above bottom
+          background: 'white',
+          paddingBottom: '16px',
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: '8px',

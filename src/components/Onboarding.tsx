@@ -239,7 +239,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               })}
             </div>
           )}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full flex-shrink-0 bg-white border-t pt-4 mt-4">
+          {/* Fixed Complete Setup Button */}
+          <div style={{ height: '80px' }} /> {/* Spacer for fixed button */}
+          <div className="fixed left-0 bottom-0 w-full z-50 bg-white border-t flex flex-col sm:flex-row gap-2 sm:gap-3 p-4"
+            style={{
+              paddingBottom: 'max(env(safe-area-inset-bottom, 24px), 24px)',
+              boxShadow: '0 -2px 8px rgba(0,0,0,0.04)'
+            }}
+          >
             <Button 
               variant="outline" 
               onClick={() => setCurrentStep(0)}
