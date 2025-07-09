@@ -37,8 +37,8 @@ function App() {
           <div 
             className="App min-h-screen flex flex-col"
             style={{
-              paddingTop: 'env(safe-area-inset-top, 16px)',
-              paddingBottom: 'max(env(safe-area-inset-bottom, 56px), 56px)'
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 64px)'
             }}
           >
             <Routes>
