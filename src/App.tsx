@@ -34,13 +34,7 @@ function App() {
         <Toaster />
         <Sonner />
         <Router future={{ v7_relativeSplatPath: true }}>
-          <div 
-            className="App min-h-screen flex flex-col"
-            style={{
-              paddingTop: 'env(safe-area-inset-top, 0px)',
-              paddingBottom: 'env(safe-area-inset-bottom, 64px)'
-            }}
-          >
+          <div className="App min-h-screen flex flex-col">
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/onboarding" element={<OnboardingScreen />} />

@@ -1,6 +1,5 @@
 // import { supabase } from '@/lib/supabaseClient'; // Supabase removed for offline mode
-import { SurahData, Goals, RevisionData, TodaysRevision, Profile } from '@/types/revision';
-import { SURAHS } from './surahData';
+import { SurahData, RevisionData, TodaysRevision, Profile } from '@/types/revision';
 import * as idbManager from './idbManager';
 import * as pushNotifications from './pushNotifications';
 
@@ -13,13 +12,8 @@ import * as pushNotifications from './pushNotifications';
 // --- Offline-Only Data Fetching Functions ---
 
 export const getSurahRevisions = async (): Promise<SurahData[]> => {
-  console.log('Getting all surah revisions...');
-  // Only use local storage
   const local = await idbManager.getAllSurahRevisions();
-  console.log('Retrieved surah revisions:', local);
-  const result = local || [];
-  console.log('Returning surah revisions:', result);
-  return result;
+  return local || [];
 };
 
 /**
@@ -63,16 +57,19 @@ export const getTodaysRevisions = async (): Promise<TodaysRevision[]> => {
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  console.log('Today (start of day):', today.toISOString());
-  
+  const todayStr = today.toISOString().split('T')[0];
+  console.log('Today (start of day):', todayStr);
+
   const todaysRevisions = surahRevisions
     .filter(surah => {
       const isMemorized = surah.memorized;
       const hasNextRevision = surah.nextRevision;
-      const isDueToday = hasNextRevision && new Date(surah.nextRevision) <= today;
-      
+      // Compare date strings only (YYYY-MM-DD) so time-of-day doesn't affect due status
+      const nextRevisionStr = hasNextRevision ? surah.nextRevision.split('T')[0] : null;
+      const isDueToday = nextRevisionStr !== null && nextRevisionStr <= todayStr;
+
       console.log(`Surah ${surah.surahNumber}: memorized=${isMemorized}, nextRevision=${surah.nextRevision}, dueToday=${isDueToday}`);
-      
+
       return isMemorized && hasNextRevision && isDueToday;
     })
     .map(surah => ({
@@ -185,23 +182,13 @@ export const getUserProfile = async (): Promise<Profile> => {
 };
 
 /**
- * Adds a record to the revision history.
- */
-const addRevisionHistory = async (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard') => {
-  // Only use local storage
-  // You may want to implement this using idbManager.addRevisionLog
-  // Example:
-  // await idbManager.addRevisionLog({ ... });
-};
-
-/**
  * Marks a surah as memorized and sets its initial revision state.
  */
 export const addMemorizedSurah = async (surahNumber: number) => {
-  // Set nextRevision to the start of today (midnight)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set to midnight
-  const nextRevision = new Date(today);
+  // Use local date string (YYYY-MM-DD) to avoid UTC offset shifting the date to yesterday
+  const todayLocal = new Date();
+  const localDateStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+  const nextRevision = new Date(`${localDateStr}T00:00:00`);
 
   const updates: Partial<SurahData> = {
     memorized: true,
@@ -262,7 +249,6 @@ export const completeRevision = async (
   }
 
   const today = new Date();
-  const lastRevision = surahData.lastRevision ? new Date(surahData.lastRevision) : today;
   
   let newInterval = surahData.interval || 1;
   let newEaseFactor = surahData.easeFactor || 2.5;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Target, AlertTriangle, Plus } from 'lucide-react';
+import { Clock, Target, AlertTriangle, Plus, BookOpen } from 'lucide-react';
 import { getTodaysRevisions, getUpcomingRevisions, completeRevision, addBackdatedRevision, getSurahRevisions } from '@/utils/dataManager';
 import { SURAHS } from '@/utils/surahData';
 import RevisionCard from '@/components/RevisionCard';
@@ -13,6 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import AddMemorisationDialog from '@/components/AddMemorisationDialog';
 
 const RecommendedRevisions = () => {
   const queryClient = useQueryClient();
@@ -20,6 +21,7 @@ const RecommendedRevisions = () => {
 
   // State to track which revisions have been completed in the current session
   const [completedInSession, setCompletedInSession] = useState<number[]>([]);
+  const [showAddMemorisation, setShowAddMemorisation] = useState(false);
 
   // State for Add Missed Revision dialog
   const [open, setOpen] = useState(false);
@@ -113,27 +115,29 @@ const RecommendedRevisions = () => {
   );
 
   // Split dueRevisions into overdue and due today
+  // A surah is only overdue if it has been revised before (lastRevision exists) AND the next date is in the past
+  const todayStr = new Date().toISOString().split('T')[0];
   const overdueRevisions = dueRevisions.filter(revision => {
-    const dueDate = new Date(revision.nextRevision);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return dueDate < today;
+    const surahData = surahRevisions.find(s => s.surahNumber === revision.surahNumber);
+    const hasBeenRevisedBefore = !!surahData?.lastRevision;
+    return hasBeenRevisedBefore && revision.nextRevision.split('T')[0] < todayStr;
   });
   const dueTodayRevisions = dueRevisions.filter(revision => {
-    const dueDate = new Date(revision.nextRevision);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return dueDate.getTime() === today.getTime();
+    const surahData = surahRevisions.find(s => s.surahNumber === revision.surahNumber);
+    const hasBeenRevisedBefore = !!surahData?.lastRevision;
+    const dateStr = revision.nextRevision.split('T')[0];
+    // Show as "today" if: due today, OR never revised before (newly added)
+    return dateStr === todayStr || !hasBeenRevisedBefore;
   });
 
   // Group overdue revisions by days overdue
   const groupOverdueRevisions = () => {
     const groups: Record<number, TodaysRevision[]> = {};
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
     overdueRevisions.forEach(revision => {
-      const dueDate = new Date(revision.nextRevision);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const daysOverdue = Math.abs(Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+      const dueDate = new Date(revision.nextRevision.split('T')[0] + 'T00:00:00');
+      const daysOverdue = Math.round((todayMidnight.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
       if (!groups[daysOverdue]) groups[daysOverdue] = [];
       groups[daysOverdue].push(revision);
     });
@@ -143,7 +147,39 @@ const RecommendedRevisions = () => {
   const overdueGroups: [string, TodaysRevision[]][] = groupOverdueRevisions();
 
   if (isLoadingToday || isLoadingSurahRevisions) {
-    return <div>Loading revisions...</div>; // Or a nice skeleton loader
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      </div>
+    );
+  }
+
+  const hasMemorizedSurahs = surahRevisions.some(s => s.memorized);
+
+  if (!hasMemorizedSurahs) {
+    return (
+      <>
+        <Card className="text-center p-8 mt-8">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h3 className="text-xl font-bold text-emerald-800 mb-2">
+            Get started
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Add your memorised surahs to get started
+          </p>
+          <Button
+            onClick={() => setShowAddMemorisation(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Memorisation
+          </Button>
+        </Card>
+        <AddMemorisationDialog open={showAddMemorisation} onOpenChange={setShowAddMemorisation} />
+      </>
+    );
   }
 
   if (todaysRevisions.length === 0) {

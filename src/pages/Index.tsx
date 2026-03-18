@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { List, Target, BookOpen, Settings, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Dashboard from '@/components/Dashboard';
@@ -10,7 +9,9 @@ import SettingsComponent from '@/components/Settings';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { SURAHS } from '@/utils/surahData';
-import { useOnboarding } from '@/hooks/use-onboarding';
+import { addBackdatedRevision } from '@/utils/dataManager';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 const RATINGS = [
   { value: 'easy', label: 'Easy' },
@@ -19,34 +20,14 @@ const RATINGS = [
 ];
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { hasCompletedOnboarding, isLoading } = useOnboarding();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('recommendations');
   const [showAddRevision, setShowAddRevision] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
-  const [selectedRating, setSelectedRating] = useState<string | undefined>(undefined);
-
-  // Redirect to onboarding if not completed
-  useEffect(() => {
-    console.log('Index useEffect - hasCompletedOnboarding:', hasCompletedOnboarding, 'isLoading:', isLoading);
-    if (!isLoading && !hasCompletedOnboarding) {
-      console.log('Redirecting to onboarding...');
-      navigate('/onboarding', { replace: true });
-    }
-  }, [hasCompletedOnboarding, isLoading, navigate]);
-
-  // Show loading while checking onboarding status
-  if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-emerald-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const [selectedRating, setSelectedRating] = useState<'easy' | 'medium' | 'hard' | undefined>(undefined);
+  const [submitting, setSubmitting] = useState(false);
 
   const tabs = [
     { id: 'recommendations', label: 'Today', icon: Target },
@@ -70,74 +51,49 @@ const Index = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual submission logic here
-    setShowAddRevision(false);
-    setSelectedDate(undefined);
-    setSelectedSurah(undefined);
-    setSelectedRating(undefined);
+    if (!selectedSurah || !selectedDate || !selectedRating) return;
+    setSubmitting(true);
+    try {
+      await addBackdatedRevision(selectedSurah, selectedRating, selectedDate);
+      toast({ title: 'Revision added', description: 'Your past revision has been logged.' });
+      setShowAddRevision(false);
+      setSelectedDate(undefined);
+      setSelectedSurah(undefined);
+      setSelectedRating(undefined);
+      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err.message });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-white to-amber-50 w-full max-w-full relative overflow-hidden">
-      {/* Mobile Header */}
+    <div className="h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-white to-amber-50 w-full relative overflow-hidden">
+      {/* Header */}
       <header
-        className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-emerald-100 px-2 sm:px-4 py-2 sm:py-3 md:hidden w-full"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 32px), 32px)' }}
+        className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-emerald-100 w-full"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="flex items-center justify-between w-full">
+        <div className="max-w-[480px] mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-base sm:text-xl font-bold text-emerald-800 leading-tight">Quran Revision Tracker</h1>
-            <p className="text-xs sm:text-sm text-emerald-600">
+            <h1 className="text-base font-bold text-emerald-800 leading-tight">Quran Revision Tracker</h1>
+            <p className="text-xs text-emerald-600">
               {tabs.find(tab => tab.id === activeTab)?.label}
             </p>
           </div>
         </div>
       </header>
 
-      {/* Desktop Header */}
-      <header
-        className="hidden md:flex items-center justify-between text-center py-6 md:py-8 w-full px-8"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 32px), 32px)' }}
-      >
-        <div>
-          <h1 className="text-2xl md:text-4xl font-bold text-emerald-800 mb-1 md:mb-2">
-            Quran Revision Tracker
-          </h1>
-          <p className="text-emerald-600 text-base md:text-lg">
-            Strengthen your memorization with intelligent spaced repetition
-          </p>
-        </div>
-      </header>
-
       <main
-        className="flex-1 flex flex-col w-full max-w-full overflow-y-auto"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)' }}
+        className="flex-1 flex flex-col w-full overflow-y-auto"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="w-full max-w-full px-2 sm:px-4 pb-20 pb-safe mx-auto">
-          {/* Desktop Navigation */}
-          <nav className="hidden md:grid grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 bg-white rounded-lg shadow-sm p-1 md:p-2 w-full">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <Button
-                  key={tab.id}
-                  variant={activeTab === tab.id ? 'default' : 'ghost'}
-                  className="flex items-center gap-2 h-12 w-full text-base"
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  <Icon className="h-5 w-5" />
-                  {tab.label}
-                </Button>
-              );
-            })}
-          </nav>
-
-          {/* Content */}
-          <section className="w-full max-w-full pb-safe pt-2 sm:pt-4 flex flex-col">
-            {renderContent()}
-          </section>
+        <div className="max-w-[480px] mx-auto w-full px-4 pt-4 pb-24">
+          {renderContent()}
         </div>
       </main>
 
@@ -148,12 +104,7 @@ const Index = () => {
             <button
               className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
               aria-label="Add past revision"
-              onClick={() => setShowAddRevision(true)}
-              style={{ 
-                // Match the Add New Memorisation FAB position
-                bottom: 'calc(max(env(safe-area-inset-bottom, 34px), 34px) + 72px)', 
-                position: 'fixed' 
-              }}
+              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
             >
               <Plus className="w-6 h-6 mr-1" />
               Add Revision
@@ -202,7 +153,7 @@ const Index = () => {
                       type="button"
                       variant={selectedRating === rating.value ? 'default' : 'outline'}
                       className="flex-1"
-                      onClick={() => setSelectedRating(rating.value)}
+                      onClick={() => setSelectedRating(rating.value as 'easy' | 'medium' | 'hard')}
                     >
                       {rating.label}
                     </Button>
@@ -213,44 +164,39 @@ const Index = () => {
               <Button
                 type="submit"
                 className="w-full mt-2"
-                disabled={!selectedSurah || !selectedDate || !selectedRating}
+                disabled={!selectedSurah || !selectedDate || !selectedRating || submitting}
               >
-                Add Revision
+                {submitting ? 'Saving...' : 'Add Revision'}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
       )}
 
-      {/* Bottom Navigation - Fixed Position */}
+      {/* Bottom Navigation */}
       <nav
-        className="bottom-navbar fixed left-0 w-full z-40 bg-white border-t border-emerald-100 px-2 sm:px-4 py-1 sm:py-2 shadow-lg"
-        style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)', // move even higher above bottom
-          background: 'white',
-          paddingBottom: '16px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '8px',
-        }}
+        className="fixed bottom-0 left-0 w-full z-40 bg-white border-t border-emerald-100 shadow-lg"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <Button
-              key={tab.id}
-              variant="ghost"
-              className={`flex flex-col items-center justify-center gap-0.5 h-14 w-full min-w-[44px] text-xs font-medium px-0 py-0 rounded-none border-0 focus:ring-0 focus:outline-none ${
-                isActive ? 'text-emerald-700' : 'text-gray-500'
-              }`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <Icon className="h-6 w-6 mb-1" />
-              {tab.label}
-            </Button>
-          );
-        })}
+        <div className="max-w-[480px] mx-auto grid grid-cols-4">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <Button
+                key={tab.id}
+                variant="ghost"
+                className={`flex flex-col items-center justify-center gap-0.5 h-14 w-full text-xs font-medium px-0 py-0 rounded-none border-0 focus:ring-0 focus:outline-none ${
+                  isActive ? 'text-emerald-700' : 'text-gray-500'
+                }`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <Icon className="h-6 w-6 mb-0.5" />
+                {tab.label}
+              </Button>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );

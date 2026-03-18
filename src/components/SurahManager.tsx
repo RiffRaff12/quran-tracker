@@ -6,12 +6,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { SURAHS, Surah } from '@/utils/surahData';
 import { getSurahRevisions, addMemorizedSurah, removeMemorizedSurah, getRevisionHistoryForSurah, getLearningPhaseStatus } from '@/utils/dataManager';
 import { SurahData } from '@/types/revision';
 import { List, CheckCircle, Circle, Loader2, History, Plus } from 'lucide-react';
+import AddMemorisationDialog from '@/components/AddMemorisationDialog';
 
 const SurahStatistics = ({ surah }: { surah: Surah }) => {
   const { data: history = [], isLoading } = useQuery({
@@ -63,8 +63,6 @@ const SurahManager = () => {
   const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
   const [learningStepFilter, setLearningStepFilter] = useState<'all' | '1' | '2' | '3' | '4'>('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [selectedToAdd, setSelectedToAdd] = useState<Set<number>>(new Set());
-  const [isAdding, setIsAdding] = useState(false);
 
   const { data: revisionData = [], isLoading } = useQuery<SurahData[]>({
     queryKey: ['surahRevisions'],
@@ -154,7 +152,11 @@ const SurahManager = () => {
     return String(surahRev.learningStep || 0) === learningStepFilter;
   });
 
-  if (isLoading) return <div>Loading Surah data...</div>;
+  if (isLoading) return (
+    <div className="flex items-center justify-center py-16">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+    </div>
+  );
 
   return (
     <div className="space-y-4 w-full max-w-full p-2 sm:p-4 pb-20">
@@ -231,90 +233,16 @@ const SurahManager = () => {
         })}
       </div>
       {/* Floating Add New Memorisation Button */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogTrigger asChild>
-          <button
-            className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            aria-label="Add new memorisation"
-            onClick={() => setShowAddDialog(true)}
-            style={{ bottom: 'calc(max(env(safe-area-inset-bottom, 34px), 34px) + 72px)', position: 'fixed' }}
-          >
-            <Plus className="w-6 h-6 mr-1" />
-            Add New Memorisation
-          </button>
-        </DialogTrigger>
-        <DialogContent className="max-w-[95vw] w-full rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Select Memorized Surahs</DialogTitle>
-          </DialogHeader>
-          <div className="mb-2 text-xs text-gray-500">Only unmemorized surahs are shown. You can select multiple.</div>
-          <div className="flex-1 overflow-y-auto space-y-2 max-h-96 min-h-0">
-            {SURAHS.filter(s => !memorizedSurahsData.some(r => r.surahNumber === s.number)).map((surah) => {
-              const isSelected = selectedToAdd.has(surah.number);
-              return (
-                <div
-                  key={surah.number}
-                  onClick={() => {
-                    const newSet = new Set(selectedToAdd);
-                    if (isSelected) newSet.delete(surah.number);
-                    else newSet.add(surah.number);
-                    setSelectedToAdd(newSet);
-                  }}
-                  className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-all touch-manipulation w-full flex items-center justify-between gap-2 ${
-                    isSelected
-                      ? 'bg-emerald-50 border-emerald-200 shadow-sm' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div
-                      className={`text-xs sm:text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {surah.number}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-base truncate">{surah.transliteration} ({surah.name})</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{surah.verses} verses • {surah.pages} pages • Juz {surah.juz}</p>
-                    </div>
-                  </div>
-                  {isSelected ? (
-                    <CheckCircle className="w-5 h-5 text-emerald-600 ml-2 flex-shrink-0" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-muted-foreground ml-2 flex-shrink-0" />
-                  )}
-                </div>
-              );
-            })}
-            {SURAHS.filter(s => !memorizedSurahsData.some(r => r.surahNumber === s.number)).length === 0 && (
-              <div className="text-center text-gray-400 py-8">All surahs are already memorized!</div>
-            )}
-          </div>
-          <div className="flex justify-end mt-4 gap-2">
-            <Button variant="outline" onClick={() => { setShowAddDialog(false); setSelectedToAdd(new Set()); }} disabled={isAdding}>Cancel</Button>
-            <Button
-              onClick={async () => {
-                if (selectedToAdd.size === 0) return;
-                setIsAdding(true);
-                for (const surahNumber of selectedToAdd) {
-                  await addSurahMutation.mutateAsync(surahNumber);
-                }
-                setIsAdding(false);
-                setShowAddDialog(false);
-                setSelectedToAdd(new Set());
-              }}
-              disabled={selectedToAdd.size === 0 || isAdding}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {isAdding ? <Loader2 className="w-4 h-4 animate-spin mr-2 inline" /> : null}
-              Add New Memorisation{selectedToAdd.size > 0 ? ` (${selectedToAdd.size})` : ''}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <button
+        className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        aria-label="Add new memorisation"
+        onClick={() => setShowAddDialog(true)}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
+      >
+        <Plus className="w-6 h-6 mr-1" />
+        Add New Memorisation
+      </button>
+      <AddMemorisationDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
     </div>
   );
 };
