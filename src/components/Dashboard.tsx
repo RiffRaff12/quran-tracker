@@ -177,7 +177,7 @@ const Dashboard = () => {
                       if (!surah) return null;
                       return (
                         <div key={revision.surahNumber} className="flex items-center gap-3 py-1">
-                          <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
                             {surah.number}
                           </div>
                           <div className="flex-1 min-w-0">
