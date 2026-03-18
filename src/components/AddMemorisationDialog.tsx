@@ -21,16 +21,15 @@ import { SURAHS, JUZS } from '@/utils/surahData';
 import { getSurahRevisions, addMemorizedSurah } from '@/utils/dataManager';
 import { SurahData } from '@/types/revision';
 import { CheckCircle, Circle, Loader2, ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 interface AddMemorisationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: (count: number) => void;
 }
 
-const AddMemorisationDialog = ({ open, onOpenChange }: AddMemorisationDialogProps) => {
+const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisationDialogProps) => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [selectedToAdd, setSelectedToAdd] = useState<Set<number>>(new Set());
   const [selectionMode, setSelectionMode] = useState<'surah' | 'juz'>('surah');
   const [selectedJuz, setSelectedJuz] = useState<Set<number>>(new Set());
@@ -96,8 +95,9 @@ const AddMemorisationDialog = ({ open, onOpenChange }: AddMemorisationDialogProp
       for (const surahNumber of selectedToAdd) {
         await addSurahMutation.mutateAsync(surahNumber);
       }
-      toast({ title: 'Memorisation saved', description: `${selectedToAdd.size} surah${selectedToAdd.size > 1 ? 's' : ''} added.` });
+      const count = selectedToAdd.size;
       resetAndClose();
+      onSuccess?.(count);
     } finally {
       setIsAdding(false);
     }

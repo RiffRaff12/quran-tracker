@@ -6,12 +6,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { SURAHS, Surah } from '@/utils/surahData';
 import { getSurahRevisions, addMemorizedSurah, removeMemorizedSurah, getRevisionHistoryForSurah, getLearningPhaseStatus } from '@/utils/dataManager';
 import { SurahData } from '@/types/revision';
-import { List, CheckCircle, Circle, Loader2, History, Plus } from 'lucide-react';
-import AddMemorisationDialog from '@/components/AddMemorisationDialog';
 
 const SurahStatistics = ({ surah }: { surah: Surah }) => {
   const { data: history = [], isLoading } = useQuery({
@@ -62,7 +61,6 @@ const SurahManager = () => {
   const [filter, setFilter] = useState<'all' | 'memorized' | 'unmemorized'>('all');
   const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
   const [learningStepFilter, setLearningStepFilter] = useState<'all' | '1' | '2' | '3' | '4'>('all');
-  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const { data: revisionData = [], isLoading } = useQuery<SurahData[]>({
     queryKey: ['surahRevisions'],
@@ -159,90 +157,77 @@ const SurahManager = () => {
   );
 
   return (
-    <div className="space-y-4 w-full max-w-full p-2 sm:p-4 pb-20">
-      <div className="flex flex-row gap-3 w-full overflow-x-auto pb-1 items-center">
-        {learningStepOptions.map((opt, idx) => (
-          <span
+    <div className="space-y-4 pb-28">
+      {/* Filter tabs */}
+      <div className="flex gap-4 overflow-x-auto pb-1 no-scrollbar">
+        {learningStepOptions.map(opt => (
+          <button
             key={opt.value}
             onClick={() => setLearningStepFilter(opt.value as any)}
-            className={
-              `cursor-pointer text-xs sm:text-sm select-none transition-colors whitespace-nowrap ` +
-              (learningStepFilter === opt.value
-                ? 'text-emerald-700 font-semibold underline underline-offset-4'
-                : 'text-muted-foreground hover:text-emerald-600')
-            }
+            className={`text-sm whitespace-nowrap pb-1 transition-colors font-medium ${
+              learningStepFilter === opt.value
+                ? 'text-emerald-600 border-b-2 border-emerald-600'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
           >
             {opt.label}
-          </span>
+          </button>
         ))}
       </div>
-      <div className="space-y-2 overflow-y-auto w-full">
+
+      {filteredSurahs.length === 0 && (
+        <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+          <p className="text-sm text-gray-400">No surahs in this category yet.</p>
+        </div>
+      )}
+
+      <div className="space-y-2">
         {filteredSurahs.map(surah => {
           const isMemorized = memorizedSurahNumbers.has(surah.number);
           const isUpdating =
             (addSurahMutation.isPending && addSurahMutation.variables === surah.number) ||
             (removeSurahMutation.isPending && removeSurahMutation.variables === surah.number);
+          const surahRev = revisionData.find(r => r.surahNumber === surah.number);
+          const learningStep = surahRev?.learningStep || 0;
+          const learningStatus = getLearningPhaseStatus(learningStep);
 
           return (
-            <Dialog key={surah.number} onOpenChange={(isOpen) => !isOpen && setSelectedSurah(null)}>
-              <div
-                className={
-                  `flex items-center justify-between p-2 sm:p-3 rounded-lg border cursor-pointer transition-all w-full touch-manipulation bg-white hover:bg-gray-50${isUpdating ? ' opacity-50 cursor-not-allowed' : ''}`
-                }
-              >
-                <DialogTrigger asChild>
-                  <div className="flex items-center gap-2 sm:gap-3 flex-grow min-w-0" onClick={() => setSelectedSurah(surah)}>
-                    <div
-                      className={
-                        `text-xs sm:text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium transition-colors bg-gray-100 text-gray-600`
-                      }
-                    >
+            <Dialog key={surah.number} onOpenChange={isOpen => !isOpen && setSelectedSurah(null)}>
+              <DialogTrigger asChild>
+                <div
+                  className={`bg-white rounded-2xl shadow-sm transition-all cursor-pointer active:scale-[0.98] ${isUpdating ? 'opacity-50' : ''}`}
+                  onClick={() => setSelectedSurah(surah)}
+                >
+                  <div className="flex items-center gap-3 p-4">
+                    <div className="h-9 w-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-medium flex-shrink-0">
                       {surah.number}
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-base truncate">{`${surah.transliteration} (${surah.name})`}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        {`${surah.verses} verses • ${surah.pages} pages • Juz ${surah.juz}`}
-                        {(() => {
-                          const surahRev = revisionData.find(r => r.surahNumber === surah.number);
-                          const learningStep = surahRev?.learningStep || 0;
-                          if (learningStep > 0) {
-                            const learningStatus = getLearningPhaseStatus(learningStep);
-                            return <><span className="mx-1">•</span><span className="text-xs sm:text-sm text-muted-foreground">{learningStatus.status}</span></>;
-                          }
-                          return null;
-                        })()}
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-base text-gray-900 leading-tight">{surah.name}</div>
+                      <div className="text-sm text-gray-500 mt-0.5">{surah.transliteration}</div>
+                      {learningStep > 0 && (
+                        <div className="text-xs text-emerald-600 mt-0.5">{learningStatus.status}</div>
+                      )}
                     </div>
                   </div>
-                </DialogTrigger>
-              </div>
+                </div>
+              </DialogTrigger>
               {selectedSurah && selectedSurah.number === surah.number && (
-                 <DialogContent className="max-w-[95vw] w-full rounded-2xl">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <History className="w-5 h-5" />
-                        Revision History: {selectedSurah.transliteration}
-                      </DialogTitle>
-                    </DialogHeader>
-                    <SurahStatistics surah={selectedSurah} />
-                  </DialogContent>
+                <DialogContent className="max-w-[92vw] w-full rounded-2xl p-6">
+                  <DialogHeader>
+                    <DialogTitle className="text-lg font-bold text-gray-900">
+                      {selectedSurah.name} · {selectedSurah.transliteration}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <SurahStatistics surah={selectedSurah} />
+                </DialogContent>
               )}
             </Dialog>
           );
         })}
       </div>
-      {/* Floating Add New Memorisation Button */}
-      <button
-        className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
-        aria-label="Add new memorisation"
-        onClick={() => setShowAddDialog(true)}
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
-      >
-        <Plus className="w-6 h-6 mr-1" />
-        Add New Memorisation
-      </button>
-      <AddMemorisationDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
+
+      {/* no local FAB — handled by global SpeedDial in Index */}
     </div>
   );
 };

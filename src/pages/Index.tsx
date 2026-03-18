@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { List, Target, BookOpen, Settings, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import Dashboard from '@/components/Dashboard';
 import SurahManager from '@/components/SurahManager';
-import GoalSetting from '@/components/GoalSetting';
 import RecommendedRevisions from '@/components/RecommendedRevisions';
 import SettingsComponent from '@/components/Settings';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { SURAHS } from '@/utils/surahData';
-import { addBackdatedRevision } from '@/utils/dataManager';
-import { useQueryClient } from '@tanstack/react-query';
+import { addBackdatedRevision, getSurahRevisions } from '@/utils/dataManager';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import SpeedDial from '@/components/SpeedDial';
+import AddMemorisationDialog from '@/components/AddMemorisationDialog';
+import RevisionToast from '@/components/RevisionToast';
+import { SurahData } from '@/types/revision';
 
 const RATINGS = [
   { value: 'easy', label: 'Easy' },
@@ -24,10 +26,21 @@ const Index = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('recommendations');
   const [showAddRevision, setShowAddRevision] = useState(false);
+  const [showAddMemorisation, setShowAddMemorisation] = useState(false);
+  const [activeMemToast, setActiveMemToast] = useState<{ count: number } | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
   const [selectedRating, setSelectedRating] = useState<'easy' | 'medium' | 'hard' | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+
+  const { data: surahRevisions = [] } = useQuery<SurahData[]>({
+    queryKey: ['surahRevisions'],
+    queryFn: getSurahRevisions,
+  });
+
+  const memorisedSurahs = SURAHS.filter(s =>
+    surahRevisions.some(r => r.surahNumber === s.number && r.memorized)
+  );
 
   const tabs = [
     { id: 'recommendations', label: 'Today', icon: Target },
@@ -72,110 +85,109 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-emerald-50 via-white to-amber-50 w-full relative overflow-hidden">
+    <div className="h-screen flex flex-col bg-[#f9fafb] w-full relative overflow-hidden">
       {/* Header */}
       <header
-        className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-emerald-100 w-full"
+        className="sticky top-0 z-40 bg-white border-b border-gray-100 w-full"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="max-w-[480px] mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold text-emerald-800 leading-tight">Quran Revision Tracker</h1>
-            <p className="text-xs text-emerald-600">
-              {tabs.find(tab => tab.id === activeTab)?.label}
-            </p>
-          </div>
+          <h1 className="text-base font-bold text-gray-900">Quran Revision Tracker</h1>
         </div>
       </header>
 
-      <main
-        className="flex-1 flex flex-col w-full overflow-y-auto"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
-        <div className="max-w-[480px] mx-auto w-full px-4 pt-4 pb-24">
+      <main className="flex-1 flex flex-col w-full overflow-y-auto">
+        <div className="max-w-[480px] mx-auto w-full px-4 pt-5 pb-28">
           {renderContent()}
         </div>
       </main>
 
-      {/* Floating Add Revision Button for Today Tab */}
-      {activeTab === 'recommendations' && (
-        <Dialog open={showAddRevision} onOpenChange={setShowAddRevision}>
-          <DialogTrigger asChild>
-            <button
-              className="fixed z-[100] right-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg flex items-center gap-2 px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"
-              aria-label="Add past revision"
-              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}
-            >
-              <Plus className="w-6 h-6 mr-1" />
-              Add Revision
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-w-[95vw] w-full rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>Add a Previous Revision</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Surah Selector */}
-              <div>
-                <label htmlFor="surah-select" className="block text-sm font-medium mb-1">Surah</label>
-                <select
-                  id="surah-select"
-                  className="w-full border rounded px-3 py-2"
-                  value={selectedSurah ?? ''}
-                  onChange={e => setSelectedSurah(Number(e.target.value) || undefined)}
-                  required
-                >
-                  <option value="" disabled>Select a surah</option>
-                  {SURAHS.map(surah => (
-                    <option key={surah.number} value={surah.number}>
-                      {surah.number}. {surah.transliteration} ({surah.name})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* Date Picker */}
-              <div className="flex flex-col items-center">
-                <label className="block text-sm font-medium mb-1">Date</label>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  toDate={new Date()}
-                />
-              </div>
-              {/* Rating Selector */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Rating</label>
-                <div className="flex gap-2">
-                  {RATINGS.map(rating => (
-                    <Button
-                      key={rating.value}
-                      type="button"
-                      variant={selectedRating === rating.value ? 'default' : 'outline'}
-                      className="flex-1"
-                      onClick={() => setSelectedRating(rating.value as 'easy' | 'medium' | 'hard')}
-                    >
-                      {rating.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full mt-2"
-                disabled={!selectedSurah || !selectedDate || !selectedRating || submitting}
-              >
-                {submitting ? 'Saving...' : 'Add Revision'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+      {/* Memorisation toast */}
+      {activeMemToast && (
+        <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <div className="pointer-events-auto">
+            <RevisionToast
+              title="Memorisation saved"
+              subtitle={`${activeMemToast.count} surah${activeMemToast.count > 1 ? 's' : ''} added`}
+              variant="memorisation"
+              onDismiss={() => setActiveMemToast(null)}
+            />
+          </div>
+        </div>
       )}
+
+      {/* Speed Dial FAB */}
+      <SpeedDial
+        onLogRevision={() => setShowAddRevision(true)}
+        onAddMemorisation={() => setShowAddMemorisation(true)}
+      />
+
+      {/* Log Revision Dialog */}
+      <Dialog open={showAddRevision} onOpenChange={setShowAddRevision}>
+        <DialogContent className="max-w-[92vw] w-full rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-gray-900">Log a Previous Revision</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+            <div>
+              <label htmlFor="surah-select" className="block text-sm font-medium text-gray-700 mb-1.5">Surah</label>
+              <select
+                id="surah-select"
+                className="w-full border border-gray-200 rounded-xl px-3 h-12 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                value={selectedSurah ?? ''}
+                onChange={e => setSelectedSurah(Number(e.target.value) || undefined)}
+                required
+              >
+                <option value="" disabled>Select a surah</option>
+                {memorisedSurahs.map(surah => (
+                  <option key={surah.number} value={surah.number}>
+                    {surah.number}. {surah.transliteration} ({surah.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col items-center">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5 self-start">Date</label>
+              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} toDate={new Date()} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Rating</label>
+              <div className="flex gap-2">
+                {RATINGS.map(rating => (
+                  <button
+                    key={rating.value}
+                    type="button"
+                    className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition-colors ${
+                      selectedRating === rating.value
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'
+                    }`}
+                    onClick={() => setSelectedRating(rating.value as 'easy' | 'medium' | 'hard')}
+                  >
+                    {rating.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-base disabled:opacity-50 transition-colors"
+              disabled={!selectedSurah || !selectedDate || !selectedRating || submitting}
+            >
+              {submitting ? 'Saving...' : 'Add Revision'}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Memorisation Dialog */}
+      <AddMemorisationDialog open={showAddMemorisation} onOpenChange={setShowAddMemorisation} onSuccess={(count) => setActiveMemToast({ count })} />
 
       {/* Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 w-full z-40 bg-white border-t border-emerald-100 shadow-lg"
+        className="fixed bottom-0 left-0 w-full z-40 bg-white border-t border-gray-100"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div className="max-w-[480px] mx-auto grid grid-cols-4">
@@ -183,17 +195,16 @@ const Index = () => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-              <Button
+              <button
                 key={tab.id}
-                variant="ghost"
-                className={`flex flex-col items-center justify-center gap-0.5 h-14 w-full text-xs font-medium px-0 py-0 rounded-none border-0 focus:ring-0 focus:outline-none ${
-                  isActive ? 'text-emerald-700' : 'text-gray-500'
+                className={`flex flex-col items-center justify-center gap-1 h-14 w-full text-xs font-medium transition-colors ${
+                  isActive ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <Icon className="h-6 w-6 mb-0.5" />
+                <Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
                 {tab.label}
-              </Button>
+              </button>
             );
           })}
         </div>

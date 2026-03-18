@@ -1,104 +1,71 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Clock, Target, AlertTriangle, Plus, BookOpen } from 'lucide-react';
-import { getTodaysRevisions, getUpcomingRevisions, completeRevision, addBackdatedRevision, getSurahRevisions } from '@/utils/dataManager';
+import { Plus, BookOpen, Flame, CheckCircle } from 'lucide-react';
+import { getTodaysRevisions, completeRevision, getSurahRevisions, getStreak } from '@/utils/dataManager';
 import { SURAHS } from '@/utils/surahData';
 import RevisionCard from '@/components/RevisionCard';
-import { useToast } from '@/hooks/use-toast';
+import RevisionToast from '@/components/RevisionToast';
 import { TodaysRevision, SurahData } from '@/types/revision';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import AddMemorisationDialog from '@/components/AddMemorisationDialog';
+
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 rounded-full bg-gray-100" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-gray-100 rounded w-2/3" />
+        <div className="h-3 bg-gray-100 rounded w-1/3" />
+      </div>
+      <div className="h-10 w-20 bg-gray-100 rounded-xl" />
+    </div>
+  </div>
+);
 
 const RecommendedRevisions = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  // State to track which revisions have been completed in the current session
   const [completedInSession, setCompletedInSession] = useState<number[]>([]);
   const [showAddMemorisation, setShowAddMemorisation] = useState(false);
+  const [activeToast, setActiveToast] = useState<{ surahName: string; difficulty: 'easy' | 'medium' | 'hard' } | null>(null);
+  const [activeMemToast, setActiveMemToast] = useState<{ count: number } | null>(null);
 
-  // State for Add Missed Revision dialog
-  const [open, setOpen] = useState(false);
-  const [selectedSurah, setSelectedSurah] = useState<number | undefined>(undefined);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleAddMissedRevision = async () => {
-    if (!selectedSurah || !selectedDate || !selectedDifficulty) return;
-    setSubmitting(true);
-    try {
-      await addBackdatedRevision(selectedSurah, selectedDifficulty, selectedDate);
-      toast({ title: 'Missed revision added', description: 'Your backdated revision was logged.' });
-      setOpen(false);
-      setSelectedSurah(undefined);
-      setSelectedDate(undefined);
-      setSelectedDifficulty('easy');
-      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Fetch revisions using React Query
   const { data: todaysRevisions = [], isLoading: isLoadingToday } = useQuery<TodaysRevision[]>({
     queryKey: ['todaysRevisions'],
     queryFn: getTodaysRevisions,
   });
 
-  const { data: upcomingRevisions = [], isLoading: isLoadingUpcoming } = useQuery({
-    queryKey: ['upcomingRevisions'],
-    queryFn: () => getUpcomingRevisions(7),
-  });
-
-  // Fetch surah revisions data to get learning step information
   const { data: surahRevisions = [], isLoading: isLoadingSurahRevisions } = useQuery<SurahData[]>({
     queryKey: ['surahRevisions'],
     queryFn: getSurahRevisions,
   });
 
-  // Mutation for completing a revision
+  const { data: streak = 0 } = useQuery<number>({
+    queryKey: ['streak'],
+    queryFn: getStreak,
+  });
+
   const revisionMutation = useMutation({
     mutationFn: ({ surahNumber, difficulty }: { surahNumber: number; difficulty: 'easy' | 'medium' | 'hard' }) =>
       completeRevision(surahNumber, difficulty),
-    onSuccess: (data, variables) => {
-      const surahInfo = getSurahInfo(variables.surahNumber);
-      toast({
-        title: `Revision Rated`,
-        description: `You rated ${surahInfo?.name} (${surahInfo?.transliteration}) as "${variables.difficulty}".`,
+    onSuccess: (_, variables) => {
+      const surahInfo = SURAHS.find(s => s.number === variables.surahNumber);
+      setActiveToast({
+        surahName: surahInfo?.name || `Surah ${variables.surahNumber}`,
+        difficulty: variables.difficulty,
       });
-      // Mark as completed in the local UI state
       setCompletedInSession(prev => [...prev, variables.surahNumber]);
-      // Invalidate queries to refetch data from the server
       queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
       queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] }); // For the surahs tab
+      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+      queryClient.invalidateQueries({ queryKey: ['streak'] });
     },
-    onError: (error) => {
-       toast({
-        variant: 'destructive',
-        title: 'Error completing revision',
-        description: error.message,
-      });
+    onError: () => {
+      // silent — card stays in list if mutation fails
     }
   });
 
   const handleMarkComplete = (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard') => {
     revisionMutation.mutate({ surahNumber, difficulty });
-  };
-  
-  const getSurahInfo = (surahNumber: number) => {
-    return SURAHS.find(s => s.number === surahNumber);
   };
 
   const getLearningStep = (surahNumber: number): number => {
@@ -106,31 +73,20 @@ const RecommendedRevisions = () => {
     return surahData?.learningStep || 0;
   };
 
-  const dueRevisions = todaysRevisions.filter(
-    r => !completedInSession.includes(r.surahNumber)
-  );
-  
-  const completedRevisions = todaysRevisions.filter(
-    r => completedInSession.includes(r.surahNumber)
-  );
+  const dueRevisions = todaysRevisions.filter(r => !completedInSession.includes(r.surahNumber));
+  const completedRevisions = todaysRevisions.filter(r => completedInSession.includes(r.surahNumber));
 
-  // Split dueRevisions into overdue and due today
-  // A surah is only overdue if it has been revised before (lastRevision exists) AND the next date is in the past
   const todayStr = new Date().toISOString().split('T')[0];
   const overdueRevisions = dueRevisions.filter(revision => {
     const surahData = surahRevisions.find(s => s.surahNumber === revision.surahNumber);
-    const hasBeenRevisedBefore = !!surahData?.lastRevision;
-    return hasBeenRevisedBefore && revision.nextRevision.split('T')[0] < todayStr;
+    return !!surahData?.lastRevision && revision.nextRevision.split('T')[0] < todayStr;
   });
   const dueTodayRevisions = dueRevisions.filter(revision => {
     const surahData = surahRevisions.find(s => s.surahNumber === revision.surahNumber);
-    const hasBeenRevisedBefore = !!surahData?.lastRevision;
     const dateStr = revision.nextRevision.split('T')[0];
-    // Show as "today" if: due today, OR never revised before (newly added)
-    return dateStr === todayStr || !hasBeenRevisedBefore;
+    return dateStr === todayStr || !surahData?.lastRevision;
   });
 
-  // Group overdue revisions by days overdue
   const groupOverdueRevisions = () => {
     const groups: Record<number, TodaysRevision[]> = {};
     const todayMidnight = new Date();
@@ -141,15 +97,24 @@ const RecommendedRevisions = () => {
       if (!groups[daysOverdue]) groups[daysOverdue] = [];
       groups[daysOverdue].push(revision);
     });
-    // Sort by most overdue first
     return Object.entries(groups).sort((a, b) => Number(b[0]) - Number(a[0]));
   };
-  const overdueGroups: [string, TodaysRevision[]][] = groupOverdueRevisions();
+  const overdueGroups = groupOverdueRevisions();
+
+  const memorizedCount = surahRevisions.filter(s => s.memorized).length;
+  const totalDue = todaysRevisions.length;
+  const completedCount = completedInSession.length;
 
   if (isLoadingToday || isLoadingSurahRevisions) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      <div className="space-y-3 pt-2">
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-white rounded-2xl p-4 shadow-sm animate-pulse h-24" />
+          <div className="bg-white rounded-2xl p-4 shadow-sm animate-pulse h-24" />
+        </div>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
       </div>
     );
   }
@@ -159,59 +124,134 @@ const RecommendedRevisions = () => {
   if (!hasMemorizedSurahs) {
     return (
       <>
-        <Card className="text-center p-8 mt-8">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-emerald-600" />
+        {/* Stats row still visible as context */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Flame className="w-4 h-4 text-orange-400" />
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Streak</span>
+            </div>
+            <div className="text-3xl font-bold text-gray-900">0</div>
+            <div className="text-xs text-gray-400 mt-0.5">days</div>
           </div>
-          <h3 className="text-xl font-bold text-emerald-800 mb-2">
-            Get started
-          </h3>
-          <p className="text-gray-600 mb-6">
-            Add your memorised surahs to get started
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <BookOpen className="w-4 h-4 text-emerald-500" />
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Memorised</span>
+            </div>
+            <div className="text-3xl font-bold text-gray-900">0</div>
+            <div className="text-xs text-gray-400 mt-0.5">of 114 surahs</div>
+          </div>
+        </div>
+
+        {/* Empty state */}
+        <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-16 h-16">
+              <circle cx="32" cy="32" r="32" fill="#f0fdf4"/>
+              <path d="M20 44 C20 44 24 28 32 24 C40 20 44 28 44 28" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M32 24 L32 44" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M26 30 C26 30 29 32 32 30" stroke="#16a34a" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M32 30 C32 30 35 32 38 30" stroke="#16a34a" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">Start your journey</h3>
+          <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            Add the surahs you've memorised and we'll build your revision schedule.
           </p>
           <Button
             onClick={() => setShowAddMemorisation(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white h-12 px-6 rounded-xl text-base font-semibold"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Memorisation
           </Button>
-        </Card>
-        <AddMemorisationDialog open={showAddMemorisation} onOpenChange={setShowAddMemorisation} />
+        </div>
+        <AddMemorisationDialog open={showAddMemorisation} onOpenChange={setShowAddMemorisation} onSuccess={(count) => setActiveMemToast({ count })} />
       </>
     );
   }
 
-  if (todaysRevisions.length === 0) {
-    return (
-      <Card className="text-center p-8 mt-8">
-        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Target className="w-8 h-8 text-emerald-600" />
-        </div>
-        <h3 className="text-xl font-bold text-emerald-800 mb-2">
-          All Set for Today!
-        </h3>
-        <p className="text-gray-600 mb-4">
-          You don't have any revisions due today. Check the Surahs tab to add more memorized surahs.
-        </p>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-6 pb-20">
-      {/* Today's Revisions */}
+    <>
+      {/* Custom toast — fixed below header, above content */}
+      {activeMemToast && (
+        <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <div className="pointer-events-auto">
+            <RevisionToast
+              title="Memorisation saved"
+              subtitle={`${activeMemToast.count} surah${activeMemToast.count > 1 ? 's' : ''} added`}
+              variant="memorisation"
+              onDismiss={() => setActiveMemToast(null)}
+            />
+          </div>
+        </div>
+      )}
+      {activeToast && (
+        <div className="fixed top-16 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <div className="pointer-events-auto">
+            <RevisionToast
+              title={activeToast.surahName}
+              subtitle={`Rated ${activeToast.difficulty.charAt(0).toUpperCase() + activeToast.difficulty.slice(1)}`}
+              variant={activeToast.difficulty}
+              onDismiss={() => setActiveToast(null)}
+            />
+          </div>
+        </div>
+      )}
+      <div className="space-y-5 pb-24">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Flame className="w-4 h-4 text-orange-400" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Streak</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900">{streak}</div>
+          <div className="text-xs text-gray-400 mt-0.5">day{streak !== 1 ? 's' : ''}</div>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <BookOpen className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Memorised</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900">{memorizedCount}</div>
+          <div className="text-xs text-gray-400 mt-0.5">of 114 surahs</div>
+        </div>
+      </div>
+
+      {/* All done state */}
+      {todaysRevisions.length === 0 && (
+        <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-16 h-16">
+              <circle cx="32" cy="32" r="32" fill="#f0fdf4"/>
+              <path d="M20 32 L28 40 L44 24" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">All done for today</h3>
+          <p className="text-gray-500 text-sm">Your next revisions are scheduled. Come back tomorrow.</p>
+        </div>
+      )}
+
+      {/* Due revisions */}
       {dueRevisions.length > 0 && (
-        <div className="mt-1">
+        <div className="space-y-4">
           {overdueGroups.length > 0 && overdueGroups.map(([days, revisions]) => (
-            <div key={days} className="mb-6">
-              <div className="text-sm font-medium text-red-500 px-1 mb-2">{days} day{Number(days) > 1 ? 's' : ''} overdue</div>
-              <div className="space-y-3">
-                {revisions.map((revision) => (
+            <div key={days}>
+              <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2 px-1">
+                {days} day{Number(days) > 1 ? 's' : ''} overdue
+              </p>
+              <div className="space-y-2">
+                {revisions.map(revision => (
                   <RevisionCard
                     key={revision.surahNumber}
                     revision={revision}
-                    onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
+                    onComplete={difficulty => handleMarkComplete(revision.surahNumber, difficulty)}
                     isCompleted={false}
                     learningStep={getLearningStep(revision.surahNumber)}
                   />
@@ -219,39 +259,34 @@ const RecommendedRevisions = () => {
               </div>
             </div>
           ))}
+
           {dueTodayRevisions.length > 0 && (
-            <>
-              <div className="text-sm font-medium text-muted-foreground px-1 mb-2">Today</div>
-              <div className="space-y-3">
-                {dueTodayRevisions.map((revision) => (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">Today</p>
+              <div className="space-y-2">
+                {dueTodayRevisions.map(revision => (
                   <RevisionCard
                     key={revision.surahNumber}
                     revision={revision}
-                    onComplete={(difficulty) => handleMarkComplete(revision.surahNumber, difficulty)}
+                    onComplete={difficulty => handleMarkComplete(revision.surahNumber, difficulty)}
                     isCompleted={false}
                     learningStep={getLearningStep(revision.surahNumber)}
                   />
                 ))}
               </div>
-            </>
+            </div>
           )}
         </div>
       )}
 
-      {/* Completed Today Section */}
+      {/* Completed today */}
       {completedRevisions.length > 0 && (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-emerald-800">
-              <Target className="w-5 h-5" />
-              Completed Today
-              <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-800">
-                {completedRevisions.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {completedRevisions.map((revision) => (
+        <div>
+          <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2 px-1 flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" /> Completed today
+          </p>
+          <div className="space-y-2">
+            {completedRevisions.map(revision => (
               <RevisionCard
                 key={revision.surahNumber}
                 revision={revision}
@@ -260,10 +295,11 @@ const RecommendedRevisions = () => {
                 learningStep={getLearningStep(revision.surahNumber)}
               />
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
+    </>
   );
 };
 

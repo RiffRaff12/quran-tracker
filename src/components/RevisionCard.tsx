@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, Circle, BookOpen } from 'lucide-react';
-import { SURAHS } from '@/utils/surahData';
-import { completeRevision, getLearningPhaseStatus } from '@/utils/dataManager';
+import { getLearningPhaseStatus } from '@/utils/dataManager';
 import { TodaysRevision } from '@/types/revision';
+import { SURAHS } from '@/utils/surahData';
 import RevisionDifficultyDialog from '@/components/RevisionDifficultyDialog';
+import { CheckCircle } from 'lucide-react';
 
 interface RevisionCardProps {
   revision: TodaysRevision;
@@ -17,76 +14,59 @@ interface RevisionCardProps {
 
 const RevisionCard = ({ revision, onComplete, isCompleted, learningStep = 0 }: RevisionCardProps) => {
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
-  
+  const [removing, setRemoving] = useState(false);
   const surah = SURAHS.find(s => s.number === revision.surahNumber);
-  
   if (!surah) return null;
 
-  const handleRevisionComplete = (difficulty: 'easy' | 'medium' | 'hard') => {
-    completeRevision(revision.surahNumber, difficulty);
-    setShowDifficultyDialog(false);
-    if (surah) {
-      onComplete(difficulty);
-    }
-  };
-
-  const getDaysUntilDue = () => {
-    const today = new Date();
-    const dueDate = new Date(revision.nextRevision);
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const daysUntilDue = getDaysUntilDue();
-  const isOverdue = daysUntilDue < 0;
-  const isDueToday = daysUntilDue === 0;
-  
-  // Get learning phase status
   const learningStatus = getLearningPhaseStatus(learningStep);
+
+  const handleRevisionComplete = (difficulty: 'easy' | 'medium' | 'hard') => {
+    // Animate card out, then propagate
+    setRemoving(true);
+    setTimeout(() => {
+      onComplete(difficulty);
+    }, 300);
+  };
 
   return (
     <>
-      <Card
-        className={`transition-all hover:shadow-md touch-manipulation p-2 sm:p-3 w-full max-w-full cursor-pointer ${
-          isCompleted ? 'bg-emerald-50 border-emerald-200' : 'bg-white'
+      <div
+        className={`bg-white rounded-2xl shadow-sm transition-all duration-300 ${
+          removing
+            ? 'opacity-0 -translate-y-2 pointer-events-none'
+            : isCompleted
+            ? 'opacity-60'
+            : 'active:scale-[0.98] cursor-pointer hover:shadow-md'
         }`}
-        onClick={() => !isCompleted && setShowDifficultyDialog(true)}
+        onClick={() => !isCompleted && !removing && setShowDifficultyDialog(true)}
       >
-        <div className="flex items-center justify-between w-full gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div
-              className={`text-sm h-10 w-10 sm:h-8 sm:w-8 rounded-full flex items-center justify-center font-medium transition-colors ${
-                isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {surah.number}
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-base truncate">{`${surah.transliteration} (${surah.name})`}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-xs text-muted-foreground">
-                  {`${surah.verses} verses • ${surah.pages} pages • Juz ${surah.juz}`}
-                  {learningStep > 0 && (
-                    <span className="mx-1">•</span>
-                  )}
-                  {learningStep > 0 && (
-                    <span className="text-xs text-muted-foreground">{learningStatus.status}</span>
-                  )}
-                </p>
-              </div>
-            </div>
+        <div className="flex items-center gap-3 p-4">
+          <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0 ${
+            isCompleted ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-600'
+          }`}>
+            {surah.number}
           </div>
 
-          <div className="flex items-center gap-2 ml-2">
-            {isCompleted ? (
-              <CheckCircle className="h-6 w-6 text-emerald-600" />
-            ) : (
-              <Circle className="h-6 w-6 text-muted-foreground" />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-base text-gray-900 leading-tight">{surah.name}</div>
+            <div className="text-sm text-gray-500 mt-0.5">{surah.transliteration}</div>
+            {learningStep > 0 && (
+              <div className="text-xs text-emerald-600 mt-0.5">{learningStatus.status}</div>
             )}
           </div>
+
+          {isCompleted ? (
+            <CheckCircle className="h-6 w-6 text-emerald-500 flex-shrink-0" />
+          ) : (
+            <button
+              className="border border-gray-200 text-gray-600 hover:border-emerald-400 hover:text-emerald-700 text-sm font-medium px-4 h-9 rounded-xl flex-shrink-0 transition-all duration-150 bg-white"
+              onClick={e => { e.stopPropagation(); setShowDifficultyDialog(true); }}
+            >
+              Revise
+            </button>
+          )}
         </div>
-      </Card>
+      </div>
 
       <RevisionDifficultyDialog
         open={showDifficultyDialog}

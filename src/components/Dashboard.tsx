@@ -1,12 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { BookOpen, Calendar, Target, TrendingUp, Clock } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { getSurahRevisions, getStreak, getTodaysRevisions, completeRevision, getUpcomingRevisions, getAllRevisionLogs } from '@/utils/dataManager';
 import { SurahData, TodaysRevision } from '@/types/revision';
 import { SURAHS } from '@/utils/surahData';
-import RevisionCard from '@/components/RevisionCard';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -80,7 +76,17 @@ const Dashboard = () => {
   const isLoading = isLoadingRevisions || isLoadingStreak || isLoadingToday || isLoadingUpcoming || isLoadingHistory;
 
   if (isLoading) {
-    return <div>Loading dashboard...</div>; // Replace with a skeleton loader for better UX
+    return (
+      <div className="space-y-3 pt-2">
+        {[1,2,3].map(i => (
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
+            <div className="h-4 bg-gray-100 rounded w-1/3 mb-3" />
+            <div className="h-8 bg-gray-100 rounded w-1/4 mb-2" />
+            <div className="h-3 bg-gray-100 rounded w-1/2" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   const memorizedSurahs = revisionData.filter(s => s.memorized).length;
@@ -118,176 +124,117 @@ const Dashboard = () => {
   const sortedDates = Object.keys(revisionsByDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
   return (
-    <div className="space-y-4 md:space-y-6 pb-20">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-        <Card>
-          <CardHeader className="p-3 flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Memorized</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className="text-2xl font-bold">{memorizedSurahs}/114</div>
-            <p className="text-xs text-muted-foreground">
-              {memorizedPercentage.toFixed(0)}% of Quran
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Streak</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className="text-2xl font-bold">{streak} Days</div>
-            <p className="text-xs text-muted-foreground">Keep it up!</p>
-          </CardContent>
-        </Card>
-        <Card className="col-span-2 md:col-span-1">
-           <CardHeader className="p-3 flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Today's Goal</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className="text-2xl font-bold">{completedTodayCount}/{dueTodayCount}</div>
-            <p className="text-xs text-muted-foreground">Revisions completed</p>
-          </CardContent>
-        </Card>
+    <div className="space-y-4 pb-24">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm col-span-1">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Memorised</div>
+          <div className="text-2xl font-bold text-gray-900">{memorizedSurahs}</div>
+          <div className="text-xs text-gray-400">of 114</div>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm col-span-1">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Streak</div>
+          <div className="text-2xl font-bold text-gray-900">{streak}</div>
+          <div className="text-xs text-gray-400">days</div>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm col-span-1">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Today</div>
+          <div className="text-2xl font-bold text-gray-900">{completedTodayCount}/{dueTodayCount}</div>
+          <div className="text-xs text-gray-400">done</div>
+        </div>
       </div>
 
-
-
       {/* Upcoming Revisions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base md:text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Upcoming Revisions
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Next 30 days of scheduled revisions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sortedDates.length === 0 ? (
-            <div className="text-center py-8 md:py-12">
-              <Calendar className="h-8 w-8 md:h-12 md:w-12 text-muted-foreground mx-auto mb-2 md:mb-4" />
-              <p className="text-muted-foreground text-sm md:text-base">
-                No upcoming revisions scheduled.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 md:space-y-6">
-              {sortedDates.slice(0, 5).map(dateKey => {
-                const date = new Date(dateKey);
-                const revisions = revisionsByDate[dateKey];
-                const isToday = date.toDateString() === new Date().toDateString();
-                
-                return (
-                  <div key={dateKey} className="space-y-3">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <h3 className={`font-semibold text-sm md:text-base ${
-                        isToday ? 'text-emerald-600' : 'text-foreground'
-                      }`}>
-                        {formatDate(dateKey)}
-                      </h3>
-                      {isToday && (
-                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 text-xs">
-                          Today
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2 pl-2">
-                      {revisions.map(revision => {
-                        const surah = SURAHS.find(s => s.number === revision.surahNumber);
-                        if (!surah) return null;
-
-                        return (
-                          <div
-                            key={revision.surahNumber}
-                            className="flex items-center justify-between p-3 rounded-lg border bg-white"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium bg-gray-100 text-gray-600">
-                                {surah.number}
-                              </div>
-                              <div>
-                                <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
-                                <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">Due on</p>
-                              <p className="text-xs font-medium">
-                                {new Date(revision.nextRevision).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                              </p>
-                            </div>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-3 border-b border-gray-50">
+          <h2 className="font-bold text-gray-900">Upcoming Revisions</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Next 30 days</p>
+        </div>
+        {sortedDates.length === 0 ? (
+          <div className="text-center py-10 px-4">
+            <Calendar className="h-8 w-8 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-400">No upcoming revisions scheduled.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {sortedDates.slice(0, 5).map(dateKey => {
+              const date = new Date(dateKey);
+              const revisions = revisionsByDate[dateKey];
+              const isToday = date.toDateString() === new Date().toDateString();
+              return (
+                <div key={dateKey} className="px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-xs font-semibold ${isToday ? 'text-emerald-600' : 'text-gray-500'}`}>
+                      {formatDate(dateKey)}
+                    </span>
+                    {isToday && (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Today</span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    {revisions.map(revision => {
+                      const surah = SURAHS.find(s => s.number === revision.surahNumber);
+                      if (!surah) return null;
+                      return (
+                        <div key={revision.surahNumber} className="flex items-center gap-3 py-1">
+                          <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {surah.number}
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">{surah.name}</div>
+                            <div className="text-xs text-gray-400">{surah.transliteration}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* Recent Revision History */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base md:text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Recent Revision History
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Your last 10 completed revisions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {revisionHistory.length === 0 ? (
-            <div className="text-center py-8 md:py-12">
-              <p className="text-muted-foreground text-sm md:text-base">
-                No revision history yet.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {revisionHistory.map((rev: any, idx: number) => {
-                const surah = SURAHS.find(s => s.number === rev.surahNumber);
-                if (!surah) return null;
-                
-                return (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-white"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm h-8 w-8 rounded-full flex items-center justify-center font-medium bg-gray-100 text-gray-600">
-                        {surah.number}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{`${surah.transliteration} (${surah.name})`}</h3>
-                        <p className="text-sm text-muted-foreground">{`${surah.verses} verses`}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">
-                        Revised on {new Date(rev.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                      <Badge className="text-xs capitalize mt-1" variant="outline">
-                        {rev.difficulty}
-                      </Badge>
+      {/* Recent History */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-3 border-b border-gray-50">
+          <h2 className="font-bold text-gray-900">Recent History</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Last 10 revisions</p>
+        </div>
+        {revisionHistory.length === 0 ? (
+          <div className="text-center py-10 px-4">
+            <p className="text-sm text-gray-400">No revision history yet.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {revisionHistory.map((rev: any, idx: number) => {
+              const surah = SURAHS.find(s => s.number === rev.surahNumber);
+              if (!surah) return null;
+              const difficultyColors: Record<string, string> = {
+                easy: 'bg-emerald-100 text-emerald-700',
+                medium: 'bg-amber-100 text-amber-700',
+                hard: 'bg-red-100 text-red-700',
+              };
+              return (
+                <div key={idx} className="flex items-center gap-3 px-4 py-3">
+                  <div className="h-8 w-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {surah.number}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{surah.name}</div>
+                    <div className="text-xs text-gray-400">
+                      {new Date(rev.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${difficultyColors[rev.difficulty] || 'bg-gray-100 text-gray-600'}`}>
+                    {rev.difficulty}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
