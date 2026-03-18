@@ -26,3 +26,8 @@ dist-ssr
 # Test output files
 coverage/*
 .vercel
+
+# Environment variables
+.env
+.env.local
+.env.*.local
