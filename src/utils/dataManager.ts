@@ -51,14 +51,11 @@ export const getStreak = async (): Promise<number> => {
  * Gets today's recommended revisions based on spaced repetition algorithm
  */
 export const getTodaysRevisions = async (): Promise<TodaysRevision[]> => {
-  console.log('Getting today\'s revisions...');
   const surahRevisions = await getSurahRevisions();
-  console.log('All surah revisions:', surahRevisions);
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split('T')[0];
-  console.log('Today (start of day):', todayStr);
 
   const todaysRevisions = surahRevisions
     .filter(surah => {
@@ -67,9 +64,6 @@ export const getTodaysRevisions = async (): Promise<TodaysRevision[]> => {
       // Compare date strings only (YYYY-MM-DD) so time-of-day doesn't affect due status
       const nextRevisionStr = hasNextRevision ? surah.nextRevision.split('T')[0] : null;
       const isDueToday = nextRevisionStr !== null && nextRevisionStr <= todayStr;
-
-      console.log(`Surah ${surah.surahNumber}: memorized=${isMemorized}, nextRevision=${surah.nextRevision}, dueToday=${isDueToday}`);
-
       return isMemorized && hasNextRevision && isDueToday;
     })
     .map(surah => ({
@@ -77,8 +71,7 @@ export const getTodaysRevisions = async (): Promise<TodaysRevision[]> => {
       nextRevision: surah.nextRevision!,
       completed: false
     }));
-  
-  console.log('Today\'s revisions found:', todaysRevisions);
+
   return todaysRevisions;
 };
 
@@ -139,26 +132,16 @@ export const getAllRevisionLogs = async () => {
 // --- Data Mutation Functions (Offline-Only) ---
 
 const updateSurahRevision = async (surahNumber: number, updates: Partial<SurahData>) => {
-  console.log(`Updating surah revision ${surahNumber} with:`, updates);
-  
-  // Update local only
   const all = await idbManager.getAllSurahRevisions();
-  console.log(`Current surah revisions (${all.length} total):`, all);
-  
   const idx = all.findIndex(s => s.surahNumber === surahNumber);
-  console.log(`Found existing surah at index: ${idx}`);
-  
+
   if (idx !== -1) {
-    console.log(`Updating existing surah ${surahNumber}`);
     all[idx] = { ...all[idx], ...updates };
   } else {
-    console.log(`Adding new surah ${surahNumber}`);
     all.push({ surahNumber, ...updates } as SurahData);
   }
-  
-  console.log(`Saving ${all.length} surah revisions...`);
+
   await idbManager.setSurahRevisions(all);
-  console.log(`Surah revision ${surahNumber} updated successfully`);
 };
 
 /**
@@ -507,6 +490,3 @@ export const getLearningPhaseStatus = (learningStep: number): { status: string; 
     return { status: 'Regular Practice', description: 'Graduated', color: 'text-gray-500' };
   }
 };
-
-// --- The rest of the file should be similarly refactored to use only idbManager and local storage. ---
-// --- Comment out or remove all Supabase and online sync logic. ---

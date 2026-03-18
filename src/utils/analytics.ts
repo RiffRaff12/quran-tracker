@@ -21,9 +21,6 @@ export async function initAnalytics(ph: typeof posthog): Promise<void> {
         installDate: new Date().toISOString(),
       };
       await setAnalyticsMetadata(meta);
-      console.log('[Analytics] First visit — created anonymous ID:', meta.anonymousId);
-    } else {
-      console.log('[Analytics] Returning visit — anonymous ID:', meta.anonymousId);
     }
 
     // Link all sessions to the same anonymous user
@@ -31,18 +28,16 @@ export async function initAnalytics(ph: typeof posthog): Promise<void> {
 
     // Fire returning_user if onboarding was previously completed
     const profile = await getUserProfile();
-    console.log('[Analytics] hasCompletedOnboarding:', profile.hasCompletedOnboarding);
 
     if (profile.hasCompletedOnboarding) {
       const installDate = new Date(meta.installDate);
       const daysSinceInstall = Math.floor(
         (Date.now() - installDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      console.log('[Analytics] Firing returning_user, days_since_install:', daysSinceInstall);
       ph.capture('returning_user', { days_since_install: daysSinceInstall });
     }
   } catch (err) {
-    console.warn('[Analytics] initAnalytics error:', err);
+    // Analytics must never break the app
   }
 }
 

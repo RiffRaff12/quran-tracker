@@ -5,8 +5,6 @@ const OnboardingScreen = () => {
   const navigate = useNavigate();
 
   const handleOnboardingComplete = () => {
-    console.log('OnboardingScreen: handleOnboardingComplete called, navigating to /');
-    // Navigate to the main home screen after onboarding is complete
     navigate('/', { replace: true });
   };
 

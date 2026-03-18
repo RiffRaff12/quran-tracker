@@ -26,21 +26,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       await updateUserOnboarding(surahs);
     },
     onSuccess: async () => {
-      console.log('Onboarding mutation success - starting cache invalidation...');
-      // Invalidate and refetch user profile
       await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-      // Also invalidate today's revisions to show the newly added surahs
       await queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
       await queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
-      console.log('Cache invalidated, refetching...');
-      // Explicitly refetch the data to ensure it's updated
       await queryClient.refetchQueries({ queryKey: ['userProfile'] });
       await queryClient.refetchQueries({ queryKey: ['todaysRevisions'] });
       await queryClient.refetchQueries({ queryKey: ['surahRevisions'] });
-      console.log('Data refetched, waiting for cache update...');
-      // Add a small delay to ensure the cache is properly updated
       await new Promise(resolve => setTimeout(resolve, 200));
-      console.log('Cache update complete, showing toast and calling onComplete...');
       toast({
         title: "Setup Complete!",
         description: "Your memorized surahs have been saved.",
