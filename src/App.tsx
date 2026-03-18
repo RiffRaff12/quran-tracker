@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Index from './pages/Index';
 import NotFound from './pages/NotFound';
 import OnboardingScreen from './pages/OnboardingScreen';
@@ -10,13 +10,16 @@ import { Toaster as Sonner } from './components/ui/sonner';
 import AdminPendingUsers from './pages/AdminPendingUsers';
 import * as pushNotifications from './utils/pushNotifications';
 import { initAnalytics } from './utils/analytics';
+import { usePostHog } from '@posthog/react';
 
 const queryClient = new QueryClient();
 
 function App() {
-  // Notification permission and listener setup
+  const posthog = usePostHog();
+
   useEffect(() => {
-    initAnalytics();
+    if (!posthog) return;
+    initAnalytics(posthog);
     (async () => {
       const granted = await pushNotifications.requestNotificationPermission();
       if (!granted) {
@@ -28,7 +31,7 @@ function App() {
         // Notification action performed
       });
     })();
-  }, []);
+  }, [posthog]);
 
   return (
     <QueryClientProvider client={queryClient}>
