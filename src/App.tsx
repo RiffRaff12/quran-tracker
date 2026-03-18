@@ -9,12 +9,14 @@ import { Toaster } from './components/ui/toaster';
 import { Toaster as Sonner } from './components/ui/sonner';
 import AdminPendingUsers from './pages/AdminPendingUsers';
 import * as pushNotifications from './utils/pushNotifications';
+import { initAnalytics } from './utils/analytics';
 
 const queryClient = new QueryClient();
 
 function App() {
   // Notification permission and listener setup
   useEffect(() => {
+    initAnalytics();
     (async () => {
       const granted = await pushNotifications.requestNotificationPermission();
       if (!granted) {

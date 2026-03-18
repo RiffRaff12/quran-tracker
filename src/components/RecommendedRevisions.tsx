@@ -8,6 +8,7 @@ import RevisionToast from '@/components/RevisionToast';
 import { TodaysRevision, SurahData } from '@/types/revision';
 import { Button } from '@/components/ui/button';
 import AddMemorisationDialog from '@/components/AddMemorisationDialog';
+import { trackRevisionLogged } from '@/utils/analytics';
 
 const SkeletonCard = () => (
   <div className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
@@ -49,11 +50,13 @@ const RecommendedRevisions = () => {
       completeRevision(surahNumber, difficulty),
     onSuccess: (_, variables) => {
       const surahInfo = SURAHS.find(s => s.number === variables.surahNumber);
+      const surahName = surahInfo?.name || `Surah ${variables.surahNumber}`;
       setActiveToast({
-        surahName: surahInfo?.name || `Surah ${variables.surahNumber}`,
+        surahName,
         difficulty: variables.difficulty,
       });
       setCompletedInSession(prev => [...prev, variables.surahNumber]);
+      trackRevisionLogged(variables.difficulty, surahName);
       queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
       queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
       queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });

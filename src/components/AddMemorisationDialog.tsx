@@ -21,6 +21,7 @@ import { SURAHS, JUZS } from '@/utils/surahData';
 import { getSurahRevisions, addMemorizedSurah } from '@/utils/dataManager';
 import { SurahData } from '@/types/revision';
 import { CheckCircle, Circle, Loader2, ArrowLeft } from 'lucide-react';
+import { trackOnboardingCompleted } from '@/utils/analytics';
 
 interface AddMemorisationDialogProps {
   open: boolean;
@@ -92,10 +93,14 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
     if (selectedToAdd.size === 0) return;
     setIsAdding(true);
     try {
+      const isFirstMemorisation = memorizedSurahNumbers.size === 0;
       for (const surahNumber of selectedToAdd) {
         await addSurahMutation.mutateAsync(surahNumber);
       }
       const count = selectedToAdd.size;
+      if (isFirstMemorisation) {
+        trackOnboardingCompleted(count);
+      }
       resetAndClose();
       onSuccess?.(count);
     } finally {

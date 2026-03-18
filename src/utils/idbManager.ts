@@ -25,10 +25,14 @@ interface AyatRevisionDB extends DBSchema {
     key: string; // notification id
     value: import('@/types/revision').ScheduledNotification;
   };
+  analyticsMetadata: {
+    key: string;
+    value: { anonymousId: string; installDate: string };
+  };
 }
 
 const DB_NAME = 'ayat-revision-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export async function getDB() {
   return openDB<AyatRevisionDB>(DB_NAME, DB_VERSION, {
@@ -47,6 +51,9 @@ export async function getDB() {
       }
       if (!db.objectStoreNames.contains('scheduledNotifications')) {
         db.createObjectStore('scheduledNotifications');
+      }
+      if (!db.objectStoreNames.contains('analyticsMetadata')) {
+        db.createObjectStore('analyticsMetadata');
       }
     },
   });
@@ -125,4 +132,15 @@ export async function addScheduledNotification(notification: import('@/types/rev
 export async function removeScheduledNotification(id: string) {
   const db = await getDB();
   await db.delete('scheduledNotifications', id);
+}
+
+// Analytics Metadata
+export async function getAnalyticsMetadata(): Promise<{ anonymousId: string; installDate: string } | undefined> {
+  const db = await getDB();
+  return db.get('analyticsMetadata', 'meta');
+}
+
+export async function setAnalyticsMetadata(data: { anonymousId: string; installDate: string }) {
+  const db = await getDB();
+  await db.put('analyticsMetadata', data, 'meta');
 } 
