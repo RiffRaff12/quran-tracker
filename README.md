@@ -1,80 +1,95 @@
-# Quran Revision Tracker (Offline-First)
+# Quran Revision Tracker
 
-## Offline-First Usage
+A privacy-first, offline-capable web and Android app for tracking Quran memorization progress and scheduling revisions.
 
-This app is now fully offline and does not require any login, registration, or internet connection. All your data is stored locally in your browser using IndexedDB.
+## Features
 
-- **No registration or login required**
-- **Works offline, even on first install or after refresh**
-- **All memorised surahs, revision history, and next revision dates are saved locally**
+- **Track all 114 Surahs** — log which surahs you've memorized and monitor your progress
+- **Smart revision scheduling** — get recommended revisions based on proven memorization techniques
+- **Offline-first** — works fully without an internet connection using IndexedDB local storage
+- **No account required** — no registration or login needed; all data stays on your device
+- **Backup & restore** — export your data as JSON and import it on any device
+- **Android app** — built with Capacitor for native Android support
 
-## Backup & Restore (Export/Import)
+## Tech Stack
 
-You can back up your data or move it to another device:
+- **Framework:** React 18 + TypeScript
+- **Build tool:** Vite
+- **Styling:** Tailwind CSS + shadcn/ui
+- **Local storage:** IndexedDB (via `idb`)
+- **Mobile:** Capacitor (Android)
+- **Analytics:** PostHog (privacy-respecting, no personal data collected)
 
-- **Export:** Click the export button (⬇️) in the app header to download all your data as a JSON file.
-- **Import:** Click the import button (⬆️) in the app header and select a previously exported JSON file to restore your data.
+## Getting Started
 
-> Tip: Use this feature to transfer your progress between devices or to keep a backup for peace of mind.
+### Prerequisites
 
-## How can I edit this code?
+- Node.js 18+
+- npm or bun
 
-There are several ways of editing your application.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repo
+git clone https://github.com/RiffRaff12/quran-tracker.git
+cd quran-tracker
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open [http://localhost:8080](http://localhost:8080) in your browser.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Available Scripts
 
-**Use GitHub Codespaces**
+```sh
+npm run dev          # Start development server
+npm run build        # Production build
+npm run preview      # Preview production build
+npm run test         # Run tests
+npm run test:ui      # Run tests with Vitest UI
+npm run lint         # Lint with ESLint
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Android Build
 
-## What technologies are used for this project?
+This app uses [Capacitor](https://capacitorjs.com/) for Android.
 
-This project is built with:
+```sh
+npm run build
+npx cap sync android
+npx cap open android
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Then build and run from Android Studio.
 
-## How can I deploy this project?
+## Data & Privacy
 
-Simply open [Lovable](https://lovable.dev/projects/d7a84027-05d5-447e-b02c-0ef4536b4066) and click on Share -> Publish.
+- All data is stored **locally on your device** — nothing is sent to a server
+- No personal information is collected
+- Export your data anytime via the in-app export button
+- Import a previously exported JSON file to restore or transfer your data
 
-## Can I connect a custom domain to my Lovable project?
+## Project Structure
 
-Yes, you can!
+```
+src/
+├── components/     # Reusable UI components
+│   └── ui/         # shadcn/ui base components
+├── pages/          # App pages/routes
+├── hooks/          # Custom React hooks
+├── lib/            # Utility libraries
+├── utils/          # Helper functions (surah data, etc.)
+└── types/          # TypeScript type definitions
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Contributing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
+
+## License
+
+[MIT](LICENSE)
