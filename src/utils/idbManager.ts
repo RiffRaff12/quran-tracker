@@ -17,10 +17,6 @@ interface AyatRevisionDB extends DBSchema {
     key: string; // 'profile'
     value: Profile;
   };
-  syncMeta: {
-    key: string; // 'lastSynced'
-    value: { lastSynced: string };
-  };
   scheduledNotifications: {
     key: string; // notification id
     value: import('@/types/revision').ScheduledNotification;
@@ -45,9 +41,6 @@ export async function getDB() {
       }
       if (!db.objectStoreNames.contains('userProfile')) {
         db.createObjectStore('userProfile');
-      }
-      if (!db.objectStoreNames.contains('syncMeta')) {
-        db.createObjectStore('syncMeta');
       }
       if (!db.objectStoreNames.contains('scheduledNotifications')) {
         db.createObjectStore('scheduledNotifications');
@@ -95,18 +88,6 @@ export async function getUserProfileOffline(): Promise<Profile | undefined> {
 export async function setUserProfileOffline(profile: Profile) {
   const db = await getDB();
   await db.put('userProfile', profile, 'profile');
-}
-
-// Sync Metadata (not used in offline-only mode, but kept for possible future use)
-export async function getLastSynced(): Promise<string | undefined> {
-  const db = await getDB();
-  const meta = await db.get('syncMeta', 'lastSynced');
-  return meta?.lastSynced;
-}
-
-export async function setLastSynced(date: string) {
-  const db = await getDB();
-  await db.put('syncMeta', { lastSynced: date }, 'lastSynced');
 }
 
 // Scheduled Notifications

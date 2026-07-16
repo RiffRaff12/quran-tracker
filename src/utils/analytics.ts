@@ -32,20 +32,15 @@ export async function initAnalytics(ph: typeof posthog): Promise<void> {
     const surahRevisions = await getAllSurahRevisions();
     const isReturning = profile.hasCompletedOnboarding || profile.memorisedSurahs.length > 0 || surahRevisions.length > 0;
 
-    console.log('[analytics] profile:', profile);
-    console.log('[analytics] surahRevisions count:', surahRevisions.length);
-    console.log('[analytics] isReturning:', isReturning);
-
     if (isReturning) {
       const installDate = new Date(meta.installDate);
       const daysSinceInstall = Math.floor(
         (Date.now() - installDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      console.log('[analytics] firing returning_user, days:', daysSinceInstall);
       ph.capture('returning_user', { days_since_install: daysSinceInstall });
     }
-  } catch (err) {
-    console.error('[analytics] initAnalytics error:', err);
+  } catch {
+    // Analytics must never break the app
   }
 }
 

@@ -1,11 +1,12 @@
-import { LocalNotifications, LocalNotificationSchema, ActionPerformed } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
 import * as idbManager from './idbManager';
 import { ScheduledNotification } from '@/types/revision';
 
 // Check if Capacitor local notifications are available (native app only)
 function isNativeNotificationsAvailable(): boolean {
   try {
-    return !!(window as any).Capacitor?.isNativePlatform?.();
+    return Capacitor.isNativePlatform();
   } catch {
     return false;
   }
@@ -19,16 +20,6 @@ export async function requestNotificationPermission(): Promise<boolean> {
     return result.display === 'granted';
   } catch {
     return false;
-  }
-}
-
-// Listen for notification actions
-export function listenForNotificationActions(onAction: (notification: ActionPerformed) => void) {
-  if (!isNativeNotificationsAvailable()) return;
-  try {
-    LocalNotifications.addListener('localNotificationActionPerformed', onAction);
-  } catch {
-    // not supported
   }
 }
 

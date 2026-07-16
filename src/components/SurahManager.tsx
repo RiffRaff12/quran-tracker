@@ -24,7 +24,7 @@ const SurahStatistics = ({ surah }: { surah: Surah }) => {
       {!isLoading && history.length === 0 && <p>No revision history found for this surah.</p>}
       {!isLoading && history.length > 0 && (
         <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
-          {history.map((entry: any) => (
+          {history.map(entry => (
             <div key={entry.id} className="flex justify-between items-center p-2 border-b">
               <p className="text-sm">
                 {new Date(entry.revision_date).toLocaleDateString('en-GB', {
@@ -48,7 +48,9 @@ const SurahStatistics = ({ surah }: { surah: Surah }) => {
   );
 };
 
-const learningStepOptions = [
+type LearningStepFilter = 'all' | '1' | '2' | '3' | '4';
+
+const learningStepOptions: { value: LearningStepFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: '1', label: 'Just Memorised' },
   { value: '2', label: 'Quick Review' },
@@ -60,7 +62,7 @@ const SurahManager = () => {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'memorized' | 'unmemorized'>('all');
   const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
-  const [learningStepFilter, setLearningStepFilter] = useState<'all' | '1' | '2' | '3' | '4'>('all');
+  const [learningStepFilter, setLearningStepFilter] = useState<LearningStepFilter>('all');
 
   const { data: revisionData = [], isLoading } = useQuery<SurahData[]>({
     queryKey: ['surahRevisions'],
@@ -83,7 +85,7 @@ const SurahManager = () => {
       }
       return { previousData };
     },
-    onError: (err, surahNumber, context: any) => {
+    onError: (err, surahNumber, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['surahRevisions'], context.previousData);
       }
@@ -114,7 +116,7 @@ const SurahManager = () => {
       }
       return { previousData };
     },
-    onError: (err, surahNumber, context: any) => {
+    onError: (err, surahNumber, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(['surahRevisions'], context.previousData);
       }
@@ -163,7 +165,7 @@ const SurahManager = () => {
         {learningStepOptions.map(opt => (
           <button
             key={opt.value}
-            onClick={() => setLearningStepFilter(opt.value as any)}
+            onClick={() => setLearningStepFilter(opt.value)}
             className={`text-sm whitespace-nowrap pb-1 transition-colors font-medium ${
               learningStepFilter === opt.value
                 ? 'text-emerald-600 border-b-2 border-emerald-600'

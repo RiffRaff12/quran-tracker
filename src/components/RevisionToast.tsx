@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle, Clock, RefreshCw, BookOpen, X } from 'lucide-react';
 
 type ToastVariant = 'easy' | 'medium' | 'hard' | 'memorisation';
@@ -33,21 +33,21 @@ const RevisionToast = ({ title, subtitle, variant, onDismiss }: RevisionToastPro
   const [visible, setVisible] = useState(false);
   const { icon, color } = config[variant];
 
+  const handleDismiss = useCallback(() => {
+    setVisible(false);
+    setTimeout(onDismiss, 200);
+  }, [onDismiss]);
+
   useEffect(() => {
     // Slide in
     const showTimer = setTimeout(() => setVisible(true), 10);
     // Auto-dismiss after 3s
-    const hideTimer = setTimeout(() => handleDismiss(), 3000);
+    const hideTimer = setTimeout(handleDismiss, 3000);
     return () => {
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
     };
-  }, []);
-
-  const handleDismiss = () => {
-    setVisible(false);
-    setTimeout(onDismiss, 200);
-  };
+  }, [handleDismiss]);
 
   return (
     <div

@@ -207,7 +207,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {revisionHistory.map((rev: any, idx: number) => {
+            {revisionHistory.map((rev, idx) => {
               const surah = SURAHS.find(s => s.number === rev.surahNumber);
               if (!surah) return null;
               const difficultyColors: Record<string, string> = {

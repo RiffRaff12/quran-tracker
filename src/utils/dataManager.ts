@@ -1,13 +1,6 @@
-// import { supabase } from '@/lib/supabaseClient'; // Supabase removed for offline mode
 import { SurahData, RevisionData, TodaysRevision, Profile } from '@/types/revision';
 import * as idbManager from './idbManager';
 import * as pushNotifications from './pushNotifications';
-
-// Utility to check online status (not needed for offline-only)
-// declare const navigator: any;
-// function isOnline() {
-//   return typeof navigator !== 'undefined' && navigator.onLine;
-// }
 
 // --- Offline-Only Data Fetching Functions ---
 
@@ -99,10 +92,17 @@ export const getUpcomingRevisions = async (days: number = 7): Promise<import('@/
     .sort((a, b) => new Date(a.nextRevision).getTime() - new Date(b.nextRevision).getTime());
 };
 
+export interface RevisionHistoryEntry {
+  id: string;
+  revision_date: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  surahNumber: number;
+}
+
 /**
  * Gets revision history for a specific surah
  */
-export const getRevisionHistoryForSurah = async (surahNumber: number): Promise<any[]> => {
+export const getRevisionHistoryForSurah = async (surahNumber: number): Promise<RevisionHistoryEntry[]> => {
   const revisionLogs = await idbManager.getAllRevisionLogs();
   
   return revisionLogs
@@ -218,113 +218,135 @@ export const removeMemorizedSurah = async (surahNumber: number) => {
 };
 
 /**
- * Processes a revision, calculates the next date using Quran-appropriate SM-2 algorithm, and updates the database.
+ * Applies the Quran-appropriate SM-2 algorithm to a surah's current scheduling
+ * state and returns the new state.
+ *
+ * - Early Repetition Phase (steps 1-3): fixed intervals of 1/2/3 days; easy
+ *   advances the step (graduating at step 4), medium repeats it, hard resets
+ *   to step 1.
+ * - Main Schedule Phase (step 4+): interval scales by the ease factor; hard
+ *   counts as a lapse and returns the surah to the early phase.
  */
-export const completeRevision = async (
-  surahNumber: number,
+const applySm2 = (
+  surahData: SurahData,
   difficulty: 'easy' | 'medium' | 'hard'
-) => {
-  const surahRevisions = await getSurahRevisions();
-  const surahData = surahRevisions.find(s => s.surahNumber === surahNumber);
-  
-  if (!surahData) {
-    throw new Error(`Surah ${surahNumber} not found in revisions`);
-  }
+): { interval: number; easeFactor: number; learningStep: number; lapses: number } => {
+  let interval = surahData.interval || 1;
+  let easeFactor = surahData.easeFactor || 2.5;
+  let learningStep = surahData.learningStep || 1;
+  let lapses = surahData.lapses || 0;
 
-  const today = new Date();
-  
-  let newInterval = surahData.interval || 1;
-  let newEaseFactor = surahData.easeFactor || 2.5;
-  let newLearningStep = surahData.learningStep || 1;
-  let newLapses = surahData.lapses || 0;
-  
-  // Quran-appropriate SM-2 Algorithm
-  if (newLearningStep < 4) {
+  if (learningStep < 4) {
     // Early Repetition Phase (steps 1-3) - all intervals in days
     if (difficulty === 'easy') {
-      // Move to next step or graduate
-      newLearningStep++;
-      if (newLearningStep === 2) {
-        newInterval = 2; // 2 days
-      } else if (newLearningStep === 3) {
-        newInterval = 3; // 3 days
-      } else if (newLearningStep === 4) {
-        newInterval = 4; // Graduate to main schedule
-      }
+      learningStep++;
+      interval = learningStep; // 2, 3, or 4 (graduated) days
     } else if (difficulty === 'medium') {
-      // Stay on current step, repeat interval
-      newInterval = newLearningStep; // 1, 2, or 3 days
-    } else if (difficulty === 'hard') {
-      // Reset to first step
-      newLearningStep = 1;
-      newInterval = 1; // 1 day
-      newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
+      interval = learningStep; // repeat current step's interval
+    } else {
+      learningStep = 1;
+      interval = 1;
+      easeFactor = Math.max(easeFactor - 0.2, 1.3);
     }
   } else {
     // Main Schedule Phase (graduated cards)
     if (difficulty === 'easy') {
-      // SM-2 ease factor calculation
-      newEaseFactor = Math.max(newEaseFactor + 0.15, 1.3);
-      newInterval = Math.round(newInterval * newEaseFactor);
+      easeFactor = Math.max(easeFactor + 0.15, 1.3);
+      interval = Math.round(interval * easeFactor);
     } else if (difficulty === 'medium') {
-      // SM-2 ease factor calculation
-      newEaseFactor = Math.max(newEaseFactor - 0.15, 1.3);
-      newInterval = Math.round(newInterval * newEaseFactor);
-    } else if (difficulty === 'hard') {
+      easeFactor = Math.max(easeFactor - 0.15, 1.3);
+      interval = Math.round(interval * easeFactor);
+    } else {
       // Lapse: return to early repetition phase
-      newLapses++;
-      newLearningStep = 1;
-      newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
-      newInterval = 1; // Reset to 1 day
+      lapses++;
+      learningStep = 1;
+      easeFactor = Math.max(easeFactor - 0.2, 1.3);
+      interval = 1;
     }
   }
-  
+
+  return { interval, easeFactor, learningStep, lapses };
+};
+
+/**
+ * Records a revision made on `revisionDate`: updates the surah's scheduling
+ * state via SM-2, logs the revision, and schedules the next notification.
+ */
+const logRevision = async (
+  surahNumber: number,
+  difficulty: 'easy' | 'medium' | 'hard',
+  revisionDate: Date
+) => {
+  const surahRevisions = await getSurahRevisions();
+  const surahData = surahRevisions.find(s => s.surahNumber === surahNumber);
+
+  if (!surahData) {
+    throw new Error(`Surah ${surahNumber} not found in revisions`);
+  }
+
+  const { interval, easeFactor, learningStep, lapses } = applySm2(surahData, difficulty);
+
   // Calculate next revision date (always in days)
-  const nextRevision = new Date(today);
-  nextRevision.setDate(today.getDate() + newInterval);
-  
-  // Update surah data
+  const nextRevision = new Date(revisionDate);
+  nextRevision.setDate(revisionDate.getDate() + interval);
+
+  // For backdated revisions the next revision may land in the past; bump it to today
+  const today = new Date();
+  if (nextRevision < today) {
+    nextRevision.setTime(today.getTime());
+  }
+
   const updates: Partial<SurahData> = {
-    lastRevision: today.toISOString(),
+    lastRevision: revisionDate.toISOString(),
     nextRevision: nextRevision.toISOString(),
-    interval: newInterval,
-    easeFactor: newEaseFactor,
-    learningStep: newLearningStep,
-    lapses: newLapses,
+    interval,
+    easeFactor,
+    learningStep,
+    lapses,
     dueDate: nextRevision.toISOString(),
     consecutiveCorrect: difficulty !== 'hard' ? (surahData.consecutiveCorrect || 0) + 1 : 0,
   };
-  
+
   await updateSurahRevision(surahNumber, updates);
-  
+
   // Add to revision history
   const revisionLog: RevisionData & { id: string } = {
-    id: `${surahNumber}_${today.getTime()}`,
+    id: `${surahNumber}_${revisionDate.getTime()}`,
     surahs: {},
     revisionHistory: [{
       surahNumber,
-      date: today.toISOString(),
+      date: revisionDate.toISOString(),
       difficulty
     }],
     streak: 0,
-    lastRevisionDate: today.toISOString(),
+    lastRevisionDate: revisionDate.toISOString(),
     goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 }
   };
-  
+
   await idbManager.addRevisionLog(revisionLog);
-  
+
   // Schedule next notification
-  const notification = {
+  await pushNotifications.scheduleLocalNotification({
     id: `${surahNumber}_${nextRevision.getTime()}`,
     surahNumber,
     fireDate: nextRevision.toISOString(),
     title: 'Revision Reminder',
     body: `Time to revise Surah ${surahNumber}!`,
     delivered: false,
-  };
-  await pushNotifications.scheduleLocalNotification(notification);
-  
+  });
+
   return { success: true };
+};
+
+/**
+ * Processes a revision done today, calculates the next date using the
+ * Quran-appropriate SM-2 algorithm, and updates the database.
+ */
+export const completeRevision = async (
+  surahNumber: number,
+  difficulty: 'easy' | 'medium' | 'hard'
+) => {
+  return logRevision(surahNumber, difficulty, new Date());
 };
 
 /**
@@ -362,116 +384,16 @@ export const updateGoals = async (goals: import('@/types/revision').Goals) => {
   return updatedProfile;
 };
 
+/**
+ * Records a revision that happened on a past date. The next revision is
+ * scheduled relative to that date, bumped to today if it lands in the past.
+ */
 export const addBackdatedRevision = async (
   surahNumber: number,
   difficulty: 'easy' | 'medium' | 'hard',
   revisionDate: Date
 ) => {
-  const surahRevisions = await getSurahRevisions();
-  const surahData = surahRevisions.find(s => s.surahNumber === surahNumber);
-  
-  if (!surahData) {
-    throw new Error(`Surah ${surahNumber} not found in revisions`);
-  }
-
-  let newInterval = surahData.interval || 1;
-  let newEaseFactor = surahData.easeFactor || 2.5;
-  let newLearningStep = surahData.learningStep || 1;
-  let newLapses = surahData.lapses || 0;
-  
-  // Quran-appropriate SM-2 Algorithm
-  if (newLearningStep < 4) {
-    // Early Repetition Phase (steps 1-3) - all intervals in days
-    if (difficulty === 'easy') {
-      // Move to next step or graduate
-      newLearningStep++;
-      if (newLearningStep === 2) {
-        newInterval = 2; // 2 days
-      } else if (newLearningStep === 3) {
-        newInterval = 3; // 3 days
-      } else if (newLearningStep === 4) {
-        newInterval = 4; // Graduate to main schedule
-      }
-    } else if (difficulty === 'medium') {
-      // Stay on current step, repeat interval
-      newInterval = newLearningStep; // 1, 2, or 3 days
-    } else if (difficulty === 'hard') {
-      // Reset to first step
-      newLearningStep = 1;
-      newInterval = 1; // 1 day
-      newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
-    }
-  } else {
-    // Main Schedule Phase (graduated cards)
-    if (difficulty === 'easy') {
-      // SM-2 ease factor calculation
-      newEaseFactor = Math.max(newEaseFactor + 0.15, 1.3);
-      newInterval = Math.round(newInterval * newEaseFactor);
-    } else if (difficulty === 'medium') {
-      // SM-2 ease factor calculation
-      newEaseFactor = Math.max(newEaseFactor - 0.15, 1.3);
-      newInterval = Math.round(newInterval * newEaseFactor);
-    } else if (difficulty === 'hard') {
-      // Lapse: return to early repetition phase
-      newLapses++;
-      newLearningStep = 1;
-      newEaseFactor = Math.max(newEaseFactor - 0.2, 1.3);
-      newInterval = 1; // Reset to 1 day
-    }
-  }
-
-  // Calculate next revision date (always in days)
-  const nextRevision = new Date(revisionDate);
-  nextRevision.setDate(revisionDate.getDate() + newInterval);
-
-  // If the next revision is in the past, bump it to today
-  const today = new Date();
-  if (nextRevision < today) {
-    nextRevision.setTime(today.getTime());
-  }
-
-  // Update surah data
-  const updates: Partial<SurahData> = {
-    lastRevision: revisionDate.toISOString(),
-    nextRevision: nextRevision.toISOString(),
-    interval: newInterval,
-    easeFactor: newEaseFactor,
-    learningStep: newLearningStep,
-    lapses: newLapses,
-    dueDate: nextRevision.toISOString(),
-    consecutiveCorrect: difficulty !== 'hard' ? (surahData.consecutiveCorrect || 0) + 1 : 0,
-  };
-
-  await updateSurahRevision(surahNumber, updates);
-
-  // Add to revision history
-  const revisionLog: RevisionData & { id: string } = {
-    id: `${surahNumber}_${revisionDate.getTime()}`,
-    surahs: {},
-    revisionHistory: [{
-      surahNumber,
-      date: revisionDate.toISOString(),
-      difficulty
-    }],
-    streak: 0,
-    lastRevisionDate: revisionDate.toISOString(),
-    goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 }
-  };
-
-  await idbManager.addRevisionLog(revisionLog);
-
-  // Schedule next notification
-  const notification = {
-    id: `${surahNumber}_${nextRevision.getTime()}`,
-    surahNumber,
-    fireDate: nextRevision.toISOString(),
-    title: 'Revision Reminder',
-    body: `Time to revise Surah ${surahNumber}!`,
-    delivered: false,
-  };
-  await pushNotifications.scheduleLocalNotification(notification);
-
-  return { success: true };
+  return logRevision(surahNumber, difficulty, revisionDate);
 };
 
 /**

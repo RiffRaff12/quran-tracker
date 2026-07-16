@@ -77,8 +77,9 @@ const Index = () => {
       setSelectedRating(undefined);
       queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
       queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Error', description: err.message });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add revision.';
+      toast({ variant: 'destructive', title: 'Error', description: message });
     } finally {
       setSubmitting(false);
     }
