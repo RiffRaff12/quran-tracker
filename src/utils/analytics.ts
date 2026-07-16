@@ -2,6 +2,36 @@ import posthog from 'posthog-js';
 import { getAnalyticsMetadata, setAnalyticsMetadata, getAllSurahRevisions } from './idbManager';
 import { getUserProfile, getAllRevisionLogs } from './dataManager';
 
+// localStorage flag shared by PostHog and Vercel Analytics.
+// PostHog persists its own opt-out; this flag also gates Vercel's inject() at startup.
+const ANALYTICS_OPT_OUT_KEY = 'analytics_opt_out';
+
+export function isAnalyticsOptedOut(): boolean {
+  try {
+    return localStorage.getItem(ANALYTICS_OPT_OUT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Enables or disables all analytics. PostHog stops immediately;
+ * Vercel Analytics stops on the next app launch.
+ */
+export function setAnalyticsOptOut(ph: typeof posthog, optOut: boolean): void {
+  try {
+    if (optOut) {
+      ph.opt_out_capturing();
+      localStorage.setItem(ANALYTICS_OPT_OUT_KEY, '1');
+    } else {
+      ph.opt_in_capturing();
+      localStorage.removeItem(ANALYTICS_OPT_OUT_KEY);
+    }
+  } catch {
+    // Analytics must never break the app
+  }
+}
+
 // Generate a random anonymous ID
 function generateAnonymousId(): string {
   return 'anon_' + Math.random().toString(36).slice(2) + Date.now().toString(36);

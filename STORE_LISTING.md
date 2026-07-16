@@ -133,7 +133,7 @@ quran, memorization, hifz, islamic, muslim, prayer, surah, ayat, revision, track
 
 ## Release Notes Template
 ```
-Version 1.1.0
+Version 1.0.0
 • Improved performance and stability
 • Enhanced offline functionality
 • Better data export/import features

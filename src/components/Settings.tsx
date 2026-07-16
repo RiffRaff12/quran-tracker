@@ -1,17 +1,40 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Upload, Settings as SettingsIcon, Database, Bell, User, MessageSquare } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Download, Upload, Settings as SettingsIcon, Database, Bell, User, MessageSquare, ShieldCheck } from 'lucide-react';
 import * as idbManager from '@/utils/idbManager';
 import { useToast } from '@/hooks/use-toast';
 import FeedbackForm from './FeedbackForm';
 import { Bell as BellIcon } from 'lucide-react';
 import * as pushNotifications from '@/utils/pushNotifications';
+import { usePostHog } from '@posthog/react';
+import { setAnalyticsOptOut } from '@/utils/analytics';
 
 const Settings = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const posthog = usePostHog();
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+
+  useEffect(() => {
+    if (posthog) {
+      setAnalyticsEnabled(!posthog.has_opted_out_capturing());
+    }
+  }, [posthog]);
+
+  const handleAnalyticsToggle = (enabled: boolean) => {
+    if (!posthog) return;
+    setAnalyticsOptOut(posthog, !enabled);
+    setAnalyticsEnabled(enabled);
+    toast({
+      title: enabled ? "Analytics enabled" : "Analytics disabled",
+      description: enabled
+        ? "Anonymous usage analytics are now on."
+        : "No usage data will be sent from this device.",
+    });
+  };
 
   // Export all IndexedDB data as JSON
   const handleExport = async () => {
@@ -264,6 +287,34 @@ const Settings = () => {
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
               <span className="text-sm">Offline-first design</span>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Privacy */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <ShieldCheck className="h-5 w-5" />
+            Privacy
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Control anonymous usage analytics. Your Quran data always stays on your device.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5 pr-4">
+              <span className="text-sm font-medium">Share anonymous analytics</span>
+              <p className="text-xs text-muted-foreground">
+                Helps us improve the app. No personal data or memorisation progress is ever sent.
+              </p>
+            </div>
+            <Switch
+              checked={analyticsEnabled}
+              onCheckedChange={handleAnalyticsToggle}
+              aria-label="Share anonymous analytics"
+            />
           </div>
         </CardContent>
       </Card>

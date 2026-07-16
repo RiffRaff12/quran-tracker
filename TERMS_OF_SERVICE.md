@@ -1,6 +1,6 @@
 # Terms of Service for Quran Revision Tracker
 
-**Last updated:** [Current Date]
+**Last updated:** July 17, 2026
 
 ## Acceptance of Terms
 
@@ -81,13 +81,13 @@ Your privacy is important to us. Please review our Privacy Policy, which is inco
 
 ## Governing Law
 
-These Terms are governed by the laws of [Your Jurisdiction]. Any disputes shall be resolved in the courts of [Your Jurisdiction].
+These Terms are governed by the laws of the United States. Any disputes shall be resolved in the appropriate courts.
 
 ## Contact Information
 
 For questions about these Terms, please contact us at:
 - Email: quranrevisiontracker@gmail.com
-- Website: [Your Website]
+- Website: https://quranrevisiontracker.com
 
 ## Severability
 
