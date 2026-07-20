@@ -34,11 +34,13 @@ export interface Goals {
 }
 
 export interface RevisionData {
+  id?: string;
   surahs: Record<number, SurahData>;
   revisionHistory: RevisionHistory[];
   streak: number;
   lastRevisionDate: string | null;
   goals: Goals;
+  previousState?: SurahData;  // Scheduling state before this revision, used for undo
 }
 
 export interface TodaysRevision {

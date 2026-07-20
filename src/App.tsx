@@ -2,12 +2,10 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Index from './pages/Index';
 import NotFound from './pages/NotFound';
-import OnboardingScreen from './pages/OnboardingScreen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from './components/ui/tooltip';
 import { Toaster } from './components/ui/toaster';
 import { Toaster as Sonner } from './components/ui/sonner';
-import * as pushNotifications from './utils/pushNotifications';
 import { initAnalytics } from './utils/analytics';
 import { usePostHog } from '@posthog/react';
 
@@ -19,7 +17,8 @@ function App() {
   useEffect(() => {
     if (!posthog) return;
     initAnalytics(posthog);
-    pushNotifications.requestNotificationPermission();
+    // Notification permission is requested contextually after the first
+    // completed revision, not on cold start (see RecommendedRevisions).
   }, [posthog]);
 
   return (
@@ -31,7 +30,6 @@ function App() {
           <div className="App min-h-screen flex flex-col">
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/onboarding" element={<OnboardingScreen />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

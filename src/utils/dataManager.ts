@@ -79,10 +79,10 @@ export const getUpcomingRevisions = async (days: number = 7): Promise<import('@/
   futureDate.setDate(today.getDate() + days);
   
   return surahRevisions
-    .filter(surah => 
-      surah.memorized && 
-      surah.nextRevision && 
-      new Date(surah.nextRevision) > today &&
+    .filter(surah =>
+      surah.memorized &&
+      surah.nextRevision &&
+      new Date(surah.nextRevision) >= today &&
       new Date(surah.nextRevision) <= futureDate
     )
     .map(surah => ({
@@ -122,6 +122,70 @@ export const getRevisionHistoryForSurah = async (surahNumber: number): Promise<R
  */
 export const getAllRevisionLogs = async () => {
   return idbManager.getAllRevisionLogs();
+};
+
+export interface CompletedTodayEntry {
+  surahNumber: number;
+  date: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+/**
+ * Gets revisions completed today (local time), most recent first.
+ * Derived from persisted revision logs so it survives tab switches and reloads.
+ */
+export const getTodaysCompletedRevisions = async (): Promise<CompletedTodayEntry[]> => {
+  const revisionLogs = await idbManager.getAllRevisionLogs();
+  const now = new Date();
+  const isToday = (iso: string) => {
+    const d = new Date(iso);
+    return d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+  };
+
+  return revisionLogs
+    .flatMap(log => log.revisionHistory || [])
+    .filter(entry => isToday(entry.date))
+    .map(entry => ({
+      surahNumber: entry.surahNumber,
+      date: entry.date,
+      difficulty: entry.difficulty,
+    }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+/**
+ * Undoes the most recent revision of a surah: restores the scheduling state
+ * captured when the revision was logged and removes the log entry.
+ * Returns false if there is nothing to undo.
+ */
+export const undoRevision = async (surahNumber: number): Promise<boolean> => {
+  const revisionLogs = await idbManager.getAllRevisionLogs();
+  const latest = revisionLogs
+    .filter(log =>
+      log.id &&
+      log.previousState &&
+      (log.revisionHistory || []).some(entry => entry.surahNumber === surahNumber)
+    )
+    .sort((a, b) =>
+      new Date(b.lastRevisionDate || 0).getTime() - new Date(a.lastRevisionDate || 0).getTime()
+    )[0];
+
+  if (!latest) return false;
+
+  const current = (await getSurahRevisions()).find(s => s.surahNumber === surahNumber);
+  await updateSurahRevision(surahNumber, latest.previousState!);
+  await idbManager.removeRevisionLog(latest.id!);
+
+  // Best-effort cleanup of the notification scheduled for the undone revision
+  if (current?.nextRevision) {
+    await pushNotifications.cancelLocalNotification(
+      `${surahNumber}_${new Date(current.nextRevision).getTime()}`
+    );
+  }
+
+  return true;
 };
 
 // --- Sync Logic (disabled for offline-only) ---
@@ -309,7 +373,7 @@ const logRevision = async (
 
   await updateSurahRevision(surahNumber, updates);
 
-  // Add to revision history
+  // Add to revision history, capturing prior scheduling state so it can be undone
   const revisionLog: RevisionData & { id: string } = {
     id: `${surahNumber}_${revisionDate.getTime()}`,
     surahs: {},
@@ -320,7 +384,8 @@ const logRevision = async (
     }],
     streak: 0,
     lastRevisionDate: revisionDate.toISOString(),
-    goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 }
+    goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 },
+    previousState: { ...surahData }
   };
 
   await idbManager.addRevisionLog(revisionLog);

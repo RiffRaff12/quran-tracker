@@ -1,16 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Calendar } from 'lucide-react';
-import { getSurahRevisions, getStreak, getTodaysRevisions, completeRevision, getUpcomingRevisions, getAllRevisionLogs } from '@/utils/dataManager';
+import { getSurahRevisions, getStreak, getTodaysRevisions, getUpcomingRevisions, getAllRevisionLogs, getTodaysCompletedRevisions, CompletedTodayEntry } from '@/utils/dataManager';
 import { SurahData, TodaysRevision } from '@/types/revision';
 import { SURAHS } from '@/utils/surahData';
-import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const [completedInSession, setCompletedInSession] = useState<number[]>([]);
-
   // Fetch all necessary data in parallel
   const { data: revisionData = [], isLoading: isLoadingRevisions } = useQuery<SurahData[]>({
     queryKey: ['surahRevisions'],
@@ -27,11 +21,16 @@ const Dashboard = () => {
     queryFn: getTodaysRevisions
   });
 
+  const { data: completedToday = [], isLoading: isLoadingCompleted } = useQuery<CompletedTodayEntry[]>({
+    queryKey: ['completedToday'],
+    queryFn: getTodaysCompletedRevisions
+  });
+
   const { data: upcomingRevisions = [], isLoading: isLoadingUpcoming } = useQuery<import('@/types/revision').UpcomingRevision[]>({
     queryKey: ['upcomingRevisions'],
     queryFn: () => getUpcomingRevisions(30) // Get for the next 30 days
   });
-  
+
   const { data: revisionHistory = [], isLoading: isLoadingHistory } = useQuery({
     queryKey: ['revisionHistory'],
     queryFn: async () => {
@@ -43,37 +42,8 @@ const Dashboard = () => {
         .slice(0, 10);
     },
   });
-  
-  const revisionMutation = useMutation({
-    mutationFn: ({ surahNumber, difficulty }: { surahNumber: number; difficulty: 'easy' | 'medium' | 'hard' }) =>
-      completeRevision(surahNumber, difficulty),
-    onSuccess: (data, variables) => {
-      toast({
-        title: `Revision Rated!`,
-        description: `Your revision has been logged.`,
-      });
-      setCompletedInSession(prev => [...prev, variables.surahNumber]);
-      // Invalidate all relevant queries to refetch data
-      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['streak'] });
-      queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['revisionHistory'] });
-    },
-    onError: (error) => {
-       toast({
-        variant: 'destructive',
-        title: 'Error completing revision',
-        description: error.message,
-      });
-    }
-  });
 
-  const handleMarkComplete = (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard') => {
-    revisionMutation.mutate({ surahNumber, difficulty });
-  };
-
-  const isLoading = isLoadingRevisions || isLoadingStreak || isLoadingToday || isLoadingUpcoming || isLoadingHistory;
+  const isLoading = isLoadingRevisions || isLoadingStreak || isLoadingToday || isLoadingCompleted || isLoadingUpcoming || isLoadingHistory;
 
   if (isLoading) {
     return (
@@ -90,13 +60,12 @@ const Dashboard = () => {
   }
 
   const memorizedSurahs = revisionData.filter(s => s.memorized).length;
-  const memorizedPercentage = (memorizedSurahs / 114) * 100;
-  
-  const dueTodayCount = todaysRevisions.length;
-  const completedTodayCount = completedInSession.length;
-  const todaysProgress = dueTodayCount > 0 ? (completedTodayCount / dueTodayCount) * 100 : 0;
-  
-  const dueRevisions = todaysRevisions.filter(r => !completedInSession.includes(r.surahNumber));
+
+  // Completed revisions move their next date forward, so they leave todaysRevisions.
+  // The day's total is therefore what's still due plus what's already been done today.
+  const stillDueCount = todaysRevisions.length;
+  const completedTodayCount = completedToday.length;
+  const dueTodayCount = stillDueCount + completedTodayCount;
 
   // Calendar helper functions
   const formatDate = (date: string) => {
@@ -128,19 +97,19 @@ const Dashboard = () => {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm col-span-1">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Memorised</div>
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Memorised</div>
           <div className="text-2xl font-bold text-gray-900">{memorizedSurahs}</div>
-          <div className="text-xs text-gray-400">of 114</div>
+          <div className="text-xs text-gray-500">of 114</div>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm col-span-1">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Streak</div>
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Streak</div>
           <div className="text-2xl font-bold text-gray-900">{streak}</div>
-          <div className="text-xs text-gray-400">days</div>
+          <div className="text-xs text-gray-500">day{streak !== 1 ? 's' : ''}</div>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm col-span-1">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Today</div>
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Today</div>
           <div className="text-2xl font-bold text-gray-900">{completedTodayCount}/{dueTodayCount}</div>
-          <div className="text-xs text-gray-400">done</div>
+          <div className="text-xs text-gray-500">done</div>
         </div>
       </div>
 
@@ -148,12 +117,12 @@ const Dashboard = () => {
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 pt-4 pb-3 border-b border-gray-50">
           <h2 className="font-bold text-gray-900">Upcoming Revisions</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Next 30 days</p>
+          <p className="text-xs text-gray-500 mt-0.5">Next 30 days</p>
         </div>
         {sortedDates.length === 0 ? (
           <div className="text-center py-10 px-4">
-            <Calendar className="h-8 w-8 text-gray-200 mx-auto mb-3" />
-            <p className="text-sm text-gray-400">No upcoming revisions scheduled.</p>
+            <Calendar className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">No upcoming revisions scheduled.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
@@ -181,8 +150,8 @@ const Dashboard = () => {
                             {surah.number}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">{surah.name}</div>
-                            <div className="text-xs text-gray-400">{surah.transliteration}</div>
+                            <div className="text-sm font-medium text-gray-900 truncate">{surah.transliteration}</div>
+                            <div className="text-xs text-gray-500">{surah.name}</div>
                           </div>
                         </div>
                       );
@@ -199,11 +168,11 @@ const Dashboard = () => {
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 pt-4 pb-3 border-b border-gray-50">
           <h2 className="font-bold text-gray-900">Recent History</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Last 10 revisions</p>
+          <p className="text-xs text-gray-500 mt-0.5">Last 10 revisions</p>
         </div>
         {revisionHistory.length === 0 ? (
           <div className="text-center py-10 px-4">
-            <p className="text-sm text-gray-400">No revision history yet.</p>
+            <p className="text-sm text-gray-500">No revision history yet.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
@@ -221,8 +190,8 @@ const Dashboard = () => {
                     {surah.number}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{surah.name}</div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-sm font-medium text-gray-900 truncate">{surah.transliteration}</div>
+                    <div className="text-xs text-gray-500">
                       {new Date(rev.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </div>
                   </div>

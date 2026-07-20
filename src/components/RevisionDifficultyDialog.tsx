@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 const difficulties = [
   {
@@ -87,8 +87,8 @@ const RevisionDifficultyDialog = ({ open, onOpenChange, surah, onComplete }: Pro
             <DialogHeader className="mb-4">
               <DialogTitle className="text-lg font-bold text-gray-900">How was your revision?</DialogTitle>
               <p className="text-sm text-gray-500 mt-1">
-                <span className="font-medium text-gray-700">{surah?.name}</span>
-                {surah?.transliteration ? ` · ${surah.transliteration}` : ''}
+                <span className="font-medium text-gray-700">{surah?.transliteration}</span>
+                {surah?.name ? ` · ${surah.name}` : ''}
               </p>
             </DialogHeader>
 

@@ -9,6 +9,9 @@ import {
   getUserProfile,
   updateUserOnboarding,
   getLearningPhaseStatus,
+  getTodaysCompletedRevisions,
+  getUpcomingRevisions,
+  undoRevision,
 } from '@/utils/dataManager';
 import { SurahData, RevisionData } from '@/types/revision';
 
@@ -398,5 +401,87 @@ describe('updateUserOnboarding', () => {
     const result = await updateUserOnboarding([]);
     expect(result.hasCompletedOnboarding).toBe(true);
     expect(result.memorisedSurahs).toEqual([]);
+  });
+});
+
+// ─── getTodaysCompletedRevisions ──────────────────────────────────────────────
+
+describe('getTodaysCompletedRevisions', () => {
+  it('returns only revisions logged today, most recent first', async () => {
+    const today = new Date();
+    const earlierToday = new Date(today.getTime() - 3600_000);
+    const yesterday = localMidnight(-1);
+    vi.mocked(idbManager.getAllRevisionLogs).mockResolvedValue([
+      { id: 'a', surahs: {}, streak: 0, lastRevisionDate: earlierToday.toISOString(),
+        goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 },
+        revisionHistory: [{ surahNumber: 2, date: earlierToday.toISOString(), difficulty: 'easy' }] },
+      { id: 'b', surahs: {}, streak: 0, lastRevisionDate: today.toISOString(),
+        goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 },
+        revisionHistory: [{ surahNumber: 5, date: today.toISOString(), difficulty: 'hard' }] },
+      { id: 'c', surahs: {}, streak: 0, lastRevisionDate: yesterday.toISOString(),
+        goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 },
+        revisionHistory: [{ surahNumber: 9, date: yesterday.toISOString(), difficulty: 'medium' }] },
+    ] as unknown as RevisionData[]);
+
+    const result = await getTodaysCompletedRevisions();
+    expect(result.map(r => r.surahNumber)).toEqual([5, 2]);
+    expect(result[0].difficulty).toBe('hard');
+  });
+
+  it('returns empty when nothing was revised today', async () => {
+    vi.mocked(idbManager.getAllRevisionLogs).mockResolvedValue([]);
+    expect(await getTodaysCompletedRevisions()).toEqual([]);
+  });
+});
+
+// ─── getUpcomingRevisions ─────────────────────────────────────────────────────
+
+describe('getUpcomingRevisions', () => {
+  it('includes surahs due today', async () => {
+    vi.mocked(idbManager.getAllSurahRevisions).mockResolvedValue([
+      makeSurah({ surahNumber: 1, nextRevision: localMidnight(0).toISOString() }),
+      makeSurah({ surahNumber: 2, nextRevision: localMidnight(3).toISOString() }),
+    ]);
+    const result = await getUpcomingRevisions(30);
+    expect(result.map(r => r.surahNumber)).toContain(1);
+    expect(result.map(r => r.surahNumber)).toContain(2);
+  });
+
+  it('excludes surahs beyond the window', async () => {
+    vi.mocked(idbManager.getAllSurahRevisions).mockResolvedValue([
+      makeSurah({ surahNumber: 1, nextRevision: localMidnight(60).toISOString() }),
+    ]);
+    expect(await getUpcomingRevisions(30)).toEqual([]);
+  });
+});
+
+// ─── undoRevision ─────────────────────────────────────────────────────────────
+
+describe('undoRevision', () => {
+  it('restores the previous scheduling state and removes the log', async () => {
+    const previousState = makeSurah({ surahNumber: 7, learningStep: 1, interval: 1 });
+    const currentState = makeSurah({ surahNumber: 7, learningStep: 2, interval: 2 });
+    vi.mocked(idbManager.getAllRevisionLogs).mockResolvedValue([
+      { id: 'log_7', surahs: {}, streak: 0, lastRevisionDate: new Date().toISOString(),
+        goals: { dailyRevisions: 5, weeklyRevisions: 20, memorizePerMonth: 1 },
+        revisionHistory: [{ surahNumber: 7, date: new Date().toISOString(), difficulty: 'easy' }],
+        previousState } as unknown as RevisionData,
+    ]);
+    vi.mocked(idbManager.getAllSurahRevisions).mockResolvedValue([currentState]);
+    vi.mocked(idbManager.removeRevisionLog).mockResolvedValue(undefined);
+    vi.mocked(pushNotifications.cancelLocalNotification).mockResolvedValue(undefined);
+
+    const ok = await undoRevision(7);
+    expect(ok).toBe(true);
+    expect(idbManager.removeRevisionLog).toHaveBeenCalledWith('log_7');
+    // Restored state written back with learningStep 1
+    const written = vi.mocked(idbManager.setSurahRevisions).mock.calls.at(-1)?.[0];
+    expect(written?.find(s => s.surahNumber === 7)?.learningStep).toBe(1);
+  });
+
+  it('returns false when there is nothing to undo', async () => {
+    vi.mocked(idbManager.getAllRevisionLogs).mockResolvedValue([]);
+    vi.mocked(idbManager.getAllSurahRevisions).mockResolvedValue([]);
+    expect(await undoRevision(7)).toBe(false);
   });
 });

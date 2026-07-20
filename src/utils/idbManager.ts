@@ -79,6 +79,11 @@ export async function addRevisionLog(log: RevisionData & { id: string }) {
   await db.put('revisionLogs', log);
 }
 
+export async function removeRevisionLog(id: string) {
+  const db = await getDB();
+  await db.delete('revisionLogs', id);
+}
+
 // User Profile
 export async function getUserProfileOffline(): Promise<Profile | undefined> {
   const db = await getDB();

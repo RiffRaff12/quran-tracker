@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, BookOpen, Flame, CheckCircle } from 'lucide-react';
-import { getTodaysRevisions, completeRevision, getSurahRevisions, getStreak } from '@/utils/dataManager';
+import { Plus, BookOpen, Flame, CheckCircle, Bell } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import {
+  getTodaysRevisions,
+  completeRevision,
+  undoRevision,
+  getSurahRevisions,
+  getStreak,
+  getTodaysCompletedRevisions,
+  CompletedTodayEntry,
+} from '@/utils/dataManager';
 import { SURAHS } from '@/utils/surahData';
 import RevisionCard from '@/components/RevisionCard';
 import RevisionToast from '@/components/RevisionToast';
@@ -9,6 +18,9 @@ import { TodaysRevision, SurahData } from '@/types/revision';
 import { Button } from '@/components/ui/button';
 import AddMemorisationDialog from '@/components/AddMemorisationDialog';
 import { trackRevisionLogged } from '@/utils/analytics';
+import * as pushNotifications from '@/utils/pushNotifications';
+
+const NOTIF_PROMPT_KEY = 'notification-prompt-shown';
 
 const SkeletonCard = () => (
   <div className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
@@ -23,12 +35,24 @@ const SkeletonCard = () => (
   </div>
 );
 
+const HowItWorks = () => (
+  <div className="text-left bg-emerald-50/60 rounded-xl p-4 mt-6">
+    <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wide mb-2">How it works</p>
+    <ul className="text-sm text-gray-600 space-y-1.5 leading-relaxed">
+      <li>1. Add the surahs you already know.</li>
+      <li>2. Each day, revise the surahs we surface and rate your recall.</li>
+      <li>3. Strong surahs come back less often; weak ones come back sooner — right before you'd forget them.</li>
+    </ul>
+  </div>
+);
+
 const RecommendedRevisions = () => {
   const queryClient = useQueryClient();
   const [completedInSession, setCompletedInSession] = useState<number[]>([]);
   const [showAddMemorisation, setShowAddMemorisation] = useState(false);
-  const [activeToast, setActiveToast] = useState<{ surahName: string; difficulty: 'easy' | 'medium' | 'hard' } | null>(null);
+  const [activeToast, setActiveToast] = useState<{ surahNumber: number; surahName: string; difficulty: 'easy' | 'medium' | 'hard' } | null>(null);
   const [activeMemToast, setActiveMemToast] = useState<{ count: number } | null>(null);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
 
   const { data: todaysRevisions = [], isLoading: isLoadingToday } = useQuery<TodaysRevision[]>({
     queryKey: ['todaysRevisions'],
@@ -45,30 +69,69 @@ const RecommendedRevisions = () => {
     queryFn: getStreak,
   });
 
+  const { data: completedToday = [] } = useQuery<CompletedTodayEntry[]>({
+    queryKey: ['completedToday'],
+    queryFn: getTodaysCompletedRevisions,
+  });
+
+  const invalidateRevisionQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
+    queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
+    queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
+    queryClient.invalidateQueries({ queryKey: ['streak'] });
+    queryClient.invalidateQueries({ queryKey: ['completedToday'] });
+    queryClient.invalidateQueries({ queryKey: ['revisionHistory'] });
+  };
+
   const revisionMutation = useMutation({
     mutationFn: ({ surahNumber, difficulty }: { surahNumber: number; difficulty: 'easy' | 'medium' | 'hard' }) =>
       completeRevision(surahNumber, difficulty),
     onSuccess: (_, variables) => {
       const surahInfo = SURAHS.find(s => s.number === variables.surahNumber);
-      const surahName = surahInfo?.name || `Surah ${variables.surahNumber}`;
+      const surahName = surahInfo?.transliteration || `Surah ${variables.surahNumber}`;
       setActiveToast({
+        surahNumber: variables.surahNumber,
         surahName,
         difficulty: variables.difficulty,
       });
       setCompletedInSession(prev => [...prev, variables.surahNumber]);
       trackRevisionLogged(variables.difficulty, surahName);
-      queryClient.invalidateQueries({ queryKey: ['todaysRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['upcomingRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['surahRevisions'] });
-      queryClient.invalidateQueries({ queryKey: ['streak'] });
+      invalidateRevisionQueries();
+
+      // Ask about reminders once, in context, right after the first completed revision
+      if (
+        Capacitor.isNativePlatform() &&
+        completedToday.length === 0 &&
+        !localStorage.getItem(NOTIF_PROMPT_KEY)
+      ) {
+        setShowNotifPrompt(true);
+      }
     },
     onError: () => {
       // silent — card stays in list if mutation fails
     }
   });
 
+  const undoMutation = useMutation({
+    mutationFn: (surahNumber: number) => undoRevision(surahNumber),
+    onSuccess: (_, surahNumber) => {
+      setCompletedInSession(prev => prev.filter(n => n !== surahNumber));
+      invalidateRevisionQueries();
+    },
+  });
+
   const handleMarkComplete = (surahNumber: number, difficulty: 'easy' | 'medium' | 'hard') => {
     revisionMutation.mutate({ surahNumber, difficulty });
+  };
+
+  const dismissNotifPrompt = () => {
+    localStorage.setItem(NOTIF_PROMPT_KEY, 'true');
+    setShowNotifPrompt(false);
+  };
+
+  const handleEnableNotifications = async () => {
+    await pushNotifications.requestNotificationPermission();
+    dismissNotifPrompt();
   };
 
   const getLearningStep = (surahNumber: number): number => {
@@ -77,7 +140,13 @@ const RecommendedRevisions = () => {
   };
 
   const dueRevisions = todaysRevisions.filter(r => !completedInSession.includes(r.surahNumber));
-  const completedRevisions = todaysRevisions.filter(r => completedInSession.includes(r.surahNumber));
+  const dueSurahNumbers = new Set(dueRevisions.map(r => r.surahNumber));
+
+  // Latest completion per surah today, excluding anything still due (persisted, so
+  // it survives tab switches and reloads)
+  const completedRevisions = completedToday
+    .filter(entry => !dueSurahNumbers.has(entry.surahNumber))
+    .filter((entry, idx, arr) => arr.findIndex(e => e.surahNumber === entry.surahNumber) === idx);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const overdueRevisions = dueRevisions.filter(revision => {
@@ -105,8 +174,6 @@ const RecommendedRevisions = () => {
   const overdueGroups = groupOverdueRevisions();
 
   const memorizedCount = surahRevisions.filter(s => s.memorized).length;
-  const totalDue = todaysRevisions.length;
-  const completedCount = completedInSession.length;
 
   if (isLoadingToday || isLoadingSurahRevisions) {
     return (
@@ -135,7 +202,7 @@ const RecommendedRevisions = () => {
               <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Streak</span>
             </div>
             <div className="text-3xl font-bold text-gray-900">0</div>
-            <div className="text-xs text-gray-400 mt-0.5">days</div>
+            <div className="text-xs text-gray-500 mt-0.5">days</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
@@ -143,7 +210,7 @@ const RecommendedRevisions = () => {
               <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Memorised</span>
             </div>
             <div className="text-3xl font-bold text-gray-900">0</div>
-            <div className="text-xs text-gray-400 mt-0.5">of 114 surahs</div>
+            <div className="text-xs text-gray-500 mt-0.5">of 114 surahs</div>
           </div>
         </div>
 
@@ -169,6 +236,7 @@ const RecommendedRevisions = () => {
             <Plus className="w-4 h-4 mr-2" />
             Add Memorisation
           </Button>
+          <HowItWorks />
         </div>
         <AddMemorisationDialog open={showAddMemorisation} onOpenChange={setShowAddMemorisation} onSuccess={(count) => setActiveMemToast({ count })} />
       </>
@@ -201,6 +269,8 @@ const RecommendedRevisions = () => {
               title={activeToast.surahName}
               subtitle={`Rated ${activeToast.difficulty.charAt(0).toUpperCase() + activeToast.difficulty.slice(1)}`}
               variant={activeToast.difficulty}
+              actionLabel="Undo"
+              onAction={() => undoMutation.mutate(activeToast.surahNumber)}
               onDismiss={() => setActiveToast(null)}
             />
           </div>
@@ -215,7 +285,7 @@ const RecommendedRevisions = () => {
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Streak</span>
           </div>
           <div className="text-3xl font-bold text-gray-900">{streak}</div>
-          <div className="text-xs text-gray-400 mt-0.5">day{streak !== 1 ? 's' : ''}</div>
+          <div className="text-xs text-gray-500 mt-0.5">day{streak !== 1 ? 's' : ''}</div>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
@@ -223,12 +293,42 @@ const RecommendedRevisions = () => {
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Memorised</span>
           </div>
           <div className="text-3xl font-bold text-gray-900">{memorizedCount}</div>
-          <div className="text-xs text-gray-400 mt-0.5">of 114 surahs</div>
+          <div className="text-xs text-gray-500 mt-0.5">of 114 surahs</div>
         </div>
       </div>
 
+      {/* Contextual notification prompt (shown once, after first completion) */}
+      {showNotifPrompt && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3">
+          <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
+            <Bell className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">Nice work — want a reminder next time?</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+              We can notify you when a surah is due for revision.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <Button
+                onClick={handleEnableNotifications}
+                className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg"
+              >
+                Enable reminders
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={dismissNotifPrompt}
+                className="h-9 px-3 text-sm text-gray-500"
+              >
+                Not now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* All done state */}
-      {todaysRevisions.length === 0 && (
+      {dueRevisions.length === 0 && (
         <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-16 h-16">
@@ -265,7 +365,7 @@ const RecommendedRevisions = () => {
 
           {dueTodayRevisions.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">Today</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-1">Today</p>
               <div className="space-y-2">
                 {dueTodayRevisions.map(revision => (
                   <RevisionCard
@@ -282,20 +382,21 @@ const RecommendedRevisions = () => {
         </div>
       )}
 
-      {/* Completed today */}
+      {/* Completed today — persisted, so it survives tab switches and reloads */}
       {completedRevisions.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2 px-1 flex items-center gap-1">
             <CheckCircle className="w-3.5 h-3.5" /> Completed today
           </p>
           <div className="space-y-2">
-            {completedRevisions.map(revision => (
+            {completedRevisions.map(entry => (
               <RevisionCard
-                key={revision.surahNumber}
-                revision={revision}
+                key={entry.surahNumber}
+                revision={{ surahNumber: entry.surahNumber, nextRevision: entry.date, completed: true }}
                 onComplete={() => {}}
                 isCompleted={true}
-                learningStep={getLearningStep(revision.surahNumber)}
+                ratedDifficulty={entry.difficulty}
+                learningStep={getLearningStep(entry.surahNumber)}
               />
             ))}
           </div>

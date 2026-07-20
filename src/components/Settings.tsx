@@ -3,20 +3,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Download, Upload, Settings as SettingsIcon, Database, Bell, User, MessageSquare, ShieldCheck } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Download, Upload, Settings as SettingsIcon, Database, Bell, User, MessageSquare, ShieldCheck, AlertTriangle } from 'lucide-react';
 import * as idbManager from '@/utils/idbManager';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import FeedbackForm from './FeedbackForm';
-import { Bell as BellIcon } from 'lucide-react';
 import * as pushNotifications from '@/utils/pushNotifications';
 import { usePostHog } from '@posthog/react';
 import { setAnalyticsOptOut } from '@/utils/analytics';
 
+const REVISION_QUERY_KEYS = [
+  ['surahRevisions'],
+  ['todaysRevisions'],
+  ['upcomingRevisions'],
+  ['streak'],
+  ['completedToday'],
+  ['revisionHistory'],
+  ['userProfile'],
+];
+
 const Settings = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const posthog = usePostHog();
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [pendingImport, setPendingImport] = useState<File | null>(null);
+
+  const refreshAllRevisionData = () => {
+    REVISION_QUERY_KEYS.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
+  };
 
   useEffect(() => {
     if (posthog) {
@@ -72,21 +99,30 @@ const Settings = () => {
     }
   };
 
-  // Import data from JSON file
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Stage the selected file, then confirm before overwriting existing data
+  const handleImportSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    if (file) setPendingImport(file);
+  };
+
+  const clearFileInput = () => {
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const performImport = async () => {
+    const file = pendingImport;
+    setPendingImport(null);
     if (!file) return;
-    
+
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      
+
       // Validate the backup file structure
       if (!data.surahRevisions || !data.revisionLogs || !data.userProfile) {
         throw new Error('Invalid backup file format');
       }
-      
-      // Import the data
+
       if (data.surahRevisions) await idbManager.setSurahRevisions(data.surahRevisions);
       if (data.revisionLogs) {
         for (const log of data.revisionLogs) await idbManager.addRevisionLog(log);
@@ -95,47 +131,43 @@ const Settings = () => {
       if (data.scheduledNotifications) {
         for (const notif of data.scheduledNotifications) await idbManager.addScheduledNotification(notif);
       }
-      
+
+      refreshAllRevisionData();
       toast({
         title: "Backup Imported",
         description: "Your data has been successfully restored.",
       });
-      
-      // Reset file input
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      clearFileInput();
     } catch (e) {
       toast({
         variant: 'destructive',
         title: "Import Failed",
         description: `Failed to import backup: ${(e as Error).message}`,
       });
-      // Reset file input
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      clearFileInput();
     }
   };
 
-  // Clear all data
-  const handleClearData = async () => {
-    if (window.confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
-      try {
-        // Clear all IndexedDB data
-        const db = await idbManager.getDB();
-        await db.clear('surahRevisions');
-        await db.clear('revisionLogs');
-        await db.clear('userProfile');
-        await db.clear('scheduledNotifications');
-        
-        toast({
-          title: "Data Cleared",
-          description: "All data has been successfully cleared.",
-        });
-      } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: "Clear Failed",
-          description: "Failed to clear data. Please try again.",
-        });
-      }
+  const performClear = async () => {
+    setShowClearConfirm(false);
+    try {
+      const db = await idbManager.getDB();
+      await db.clear('surahRevisions');
+      await db.clear('revisionLogs');
+      await db.clear('userProfile');
+      await db.clear('scheduledNotifications');
+
+      refreshAllRevisionData();
+      toast({
+        title: "Data Cleared",
+        description: "All data has been successfully cleared.",
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: "Clear Failed",
+        description: "Failed to clear data. Please try again.",
+      });
     }
   };
 
@@ -154,37 +186,30 @@ const Settings = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Button 
-              onClick={handleExport} 
+            <Button
+              onClick={handleExport}
               className="h-12 w-full text-base"
               variant="outline"
             >
               <Download className="w-4 h-4 mr-2" />
               Export Backup
             </Button>
-            <Button 
-              onClick={() => fileInputRef.current?.click()} 
+            <Button
+              onClick={() => fileInputRef.current?.click()}
               className="h-12 w-full text-base"
               variant="outline"
             >
               <Upload className="w-4 h-4 mr-2" />
               Import Backup
             </Button>
-            <input 
-              ref={fileInputRef} 
-              type="file" 
-              accept="application/json" 
-              style={{ display: 'none' }} 
-              onChange={handleImport} 
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              onChange={handleImportSelected}
             />
           </div>
-          <Button 
-            onClick={handleClearData} 
-            className="h-12 w-full text-base"
-            variant="destructive"
-          >
-            Clear All Data
-          </Button>
         </CardContent>
       </Card>
 
@@ -265,7 +290,7 @@ const Settings = () => {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-              <span className="text-sm">Track memorized surahs</span>
+              <span className="text-sm">Track memorised surahs</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
@@ -354,7 +379,7 @@ const Settings = () => {
         <CardContent>
           <div className="space-y-3 text-sm">
             <p>
-              Spaced repetition is a proven learning technique that helps you remember what you've memorized for the long term. Instead of reviewing everything every day, the app schedules each surah for revision at just the right time—right before you're likely to forget it.
+              Spaced repetition is a proven learning technique that helps you remember what you've memorised for the long term. Instead of reviewing everything every day, the app schedules each surah for revision at just the right time—right before you're likely to forget it.
             </p>
             <ul className="list-disc pl-5 space-y-1">
               <li>When you review a surah, you rate how easy or hard it was to recall.</li>
@@ -369,8 +394,66 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-red-700">
+            <AlertTriangle className="h-5 w-5" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Permanently erase everything on this device. Export a backup first if you might want it back.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => setShowClearConfirm(true)}
+            className="h-12 w-full text-base"
+            variant="outline"
+          >
+            Clear All Data
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Import confirmation */}
+      <AlertDialog open={!!pendingImport} onOpenChange={(open) => { if (!open) { setPendingImport(null); clearFileInput(); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore this backup?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing merges the backup into your current data and overwrites your saved surahs and
+              profile. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={clearFileInput}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performImport}>Import</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear-all confirmation */}
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes every memorised surah, revision log, and setting on this device.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={performClear}>
+              Delete everything
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-export default Settings; 
+export default Settings;

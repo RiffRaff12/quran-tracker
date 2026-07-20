@@ -45,13 +45,15 @@ const SpeedDial = ({ onLogRevision, onAddMemorisation }: SpeedDialProps) => {
       className="fixed z-[100] right-4 flex flex-col items-end gap-3"
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
     >
-      {/* Speed dial options */}
+      {/* Speed dial options — whole row (label + icon) is one tap target */}
       {actions.map((action, i) => {
         const Icon = action.icon;
         return (
-          <div
+          <button
             key={action.label}
-            className="flex items-center gap-3 transition-all duration-200"
+            onClick={action.onClick}
+            aria-label={action.label}
+            className="flex items-center gap-3 transition-all duration-200 group"
             style={{
               opacity: open ? 1 : 0,
               transform: open ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.9)',
@@ -62,13 +64,10 @@ const SpeedDial = ({ onLogRevision, onAddMemorisation }: SpeedDialProps) => {
             <span className="bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-md whitespace-nowrap">
               {action.label}
             </span>
-            <button
-              onClick={action.onClick}
-              className="h-11 w-11 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors"
-            >
+            <span className="h-11 w-11 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-emerald-600 group-hover:bg-emerald-50 transition-colors">
               <Icon className="w-5 h-5" />
-            </button>
-          </div>
+            </span>
+          </button>
         );
       })}
 

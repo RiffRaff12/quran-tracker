@@ -20,7 +20,7 @@ import {
 import { SURAHS, JUZS } from '@/utils/surahData';
 import { getSurahRevisions, addMemorizedSurah } from '@/utils/dataManager';
 import { SurahData } from '@/types/revision';
-import { CheckCircle, Circle, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Circle, Loader2, Search } from 'lucide-react';
 import { trackOnboardingCompleted } from '@/utils/analytics';
 
 interface AddMemorisationDialogProps {
@@ -36,6 +36,7 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
   const [selectedJuz, setSelectedJuz] = useState<Set<number>>(new Set());
   const [isAdding, setIsAdding] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [search, setSearch] = useState('');
 
   const { data: revisionData = [] } = useQuery<SurahData[]>({
     queryKey: ['surahRevisions'],
@@ -86,6 +87,7 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
     setSelectedToAdd(new Set());
     setSelectedJuz(new Set());
     setSelectionMode('surah');
+    setSearch('');
     onOpenChange(false);
   };
 
@@ -109,22 +111,21 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
   };
 
   const unmemorizedSurahs = SURAHS.filter(s => !memorizedSurahNumbers.has(s.number));
+  const q = search.trim().toLowerCase();
+  const visibleSurahs = q
+    ? unmemorizedSurahs.filter(s =>
+        s.transliteration.toLowerCase().includes(q) ||
+        s.name.includes(search.trim()) ||
+        String(s.number) === q
+      )
+    : unmemorizedSurahs;
 
   return (
     <>
       <Dialog open={open} onOpenChange={(val) => { if (!val) handleClose(); }}>
         <DialogContent className="max-w-[95vw] w-full rounded-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleClose}
-                className="p-1 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Go back"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <DialogTitle>Add Memorisation</DialogTitle>
-            </div>
+            <DialogTitle>Add Memorisation</DialogTitle>
           </DialogHeader>
 
           {/* Surah / Juz toggle */}
@@ -145,6 +146,21 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
             </Button>
           </div>
 
+          {/* Search (surah mode only) */}
+          {selectionMode === 'surah' && (
+            <div className="relative flex-shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search surah by name or number"
+                className="w-full border border-gray-200 rounded-xl pl-9 pr-3 h-10 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                aria-label="Search surahs"
+              />
+            </div>
+          )}
+
           <div className="text-xs text-gray-500 flex-shrink-0">
             {selectedToAdd.size > 0 ? `${selectedToAdd.size} selected` : 'Select surahs you have memorised'}
           </div>
@@ -153,7 +169,7 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
           <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
             {selectionMode === 'surah' ? (
               <>
-                {unmemorizedSurahs.map((surah) => {
+                {visibleSurahs.map((surah) => {
                   const isSelected = selectedToAdd.has(surah.number);
                   return (
                     <div
@@ -186,8 +202,12 @@ const AddMemorisationDialog = ({ open, onOpenChange, onSuccess }: AddMemorisatio
                     </div>
                   );
                 })}
-                {unmemorizedSurahs.length === 0 && (
-                  <div className="text-center text-gray-400 py-8">All surahs are already memorised!</div>
+                {visibleSurahs.length === 0 && (
+                  <div className="text-center text-gray-500 py-8">
+                    {unmemorizedSurahs.length === 0
+                      ? 'All surahs are already memorised!'
+                      : 'No surahs match your search.'}
+                  </div>
                 )}
               </>
             ) : (

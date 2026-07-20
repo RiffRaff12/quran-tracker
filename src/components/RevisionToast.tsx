@@ -8,6 +8,8 @@ interface RevisionToastProps {
   subtitle: string;
   variant: ToastVariant;
   onDismiss: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 const config: Record<ToastVariant, { icon: React.ReactNode; color: string }> = {
@@ -29,7 +31,7 @@ const config: Record<ToastVariant, { icon: React.ReactNode; color: string }> = {
   },
 };
 
-const RevisionToast = ({ title, subtitle, variant, onDismiss }: RevisionToastProps) => {
+const RevisionToast = ({ title, subtitle, variant, onDismiss, actionLabel, onAction }: RevisionToastProps) => {
   const [visible, setVisible] = useState(false);
   const { icon, color } = config[variant];
 
@@ -41,13 +43,13 @@ const RevisionToast = ({ title, subtitle, variant, onDismiss }: RevisionToastPro
   useEffect(() => {
     // Slide in
     const showTimer = setTimeout(() => setVisible(true), 10);
-    // Auto-dismiss after 3s
-    const hideTimer = setTimeout(handleDismiss, 3000);
+    // Auto-dismiss (leave longer when there is an action to consider)
+    const hideTimer = setTimeout(handleDismiss, actionLabel ? 5000 : 3000);
     return () => {
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
     };
-  }, [handleDismiss]);
+  }, [handleDismiss, actionLabel]);
 
   return (
     <div
@@ -63,9 +65,17 @@ const RevisionToast = ({ title, subtitle, variant, onDismiss }: RevisionToastPro
         <span className="text-sm font-medium text-gray-900 truncate block">{title}</span>
         <span className={`text-xs font-medium ${color}`}>{subtitle}</span>
       </div>
+      {actionLabel && onAction && (
+        <button
+          onClick={() => { onAction(); handleDismiss(); }}
+          className="flex-shrink-0 text-sm font-semibold text-emerald-700 hover:text-emerald-800 px-2 py-1 rounded-lg hover:bg-emerald-50 transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
       <button
         onClick={handleDismiss}
-        className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors ml-1"
+        className="flex-shrink-0 text-gray-500 hover:text-gray-700 transition-colors ml-1"
         aria-label="Dismiss"
       >
         <X className="w-4 h-4" />
